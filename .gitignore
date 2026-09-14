@@ -1,0 +1,7 @@
+firebase-debug.log
+*-debug.log
+.env
+.env.*
+node_modules/
+.rules-audit.md
+dist/

@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#ffffff">
+    <title>coldworld2000</title>
+    <style>
+      html {
+        height: 100%;
+        overflow: hidden;
+        background: #fff;
+      }
+      body {
+        margin: 0;
+        position: fixed;
+        inset: 0;
+        overflow: hidden;
+        overscroll-behavior: none;
+        background: #fff;
+        color: #111;
+        font-family: Arial, sans-serif;
+      }
+
+      * { box-sizing: border-box; }
+      .workspace {
+        width: min(100%, 720px);
+        height: 100%;
+        height: 100dvh;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        padding: max(24px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) 0 max(20px, env(safe-area-inset-left));
+      }
+      .toolbar { display: flex; align-items: center; gap: 12px; flex-shrink: 0; position: relative; z-index: 2; margin-bottom: 32px; }
+      .word-entry { display: flex; align-items: center; flex: 1; min-width: 0; }
+      .add-slot {
+        width: 0;
+        flex-shrink: 0;
+        opacity: 0;
+        visibility: hidden;
+        transform: scale(.8);
+        transition: width 280ms ease, opacity 200ms ease, transform 280ms ease, visibility 280ms;
+      }
+      .word-entry.has-word .add-slot {
+        width: 66px;
+        opacity: 1;
+        visibility: visible;
+        transform: scale(1);
+      }
+      .add-button {
+        width: 54px;
+        margin-left: 12px;
+        padding: 0;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        -webkit-tap-highlight-color: transparent;
+        transition: transform 180ms ease, border-color 220ms ease, box-shadow 220ms ease;
+      }
+      .add-button:active {
+        transform: scale(.96);
+        border-color: #e1e4e8;
+        box-shadow: 0 0 12px #333d4b0c;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .add-slot, .add-button { transition: none; }
+        .add-button:active { transform: none; }
+      }
+      .word-input, .profile-button, .add-button {
+        height: 54px;
+        border: 1px solid #eceef0;
+        background: #fff;
+        box-shadow: 0 2px 8px #333d4b08;
+      }
+      .word-input {
+        width: 100%;
+        min-width: 0;
+        padding: 0 20px;
+        border-radius: 20px;
+        font: inherit;
+        font-size: 16px;
+        color: #24272b;
+        transition: border-color 220ms ease, box-shadow 220ms ease;
+      }
+      .word-input:focus {
+        outline: none;
+        border-color: #e1e4e8;
+        box-shadow: 0 0 12px #333d4b0c;
+      }
+      .word-input::placeholder { color: #85898f; }
+      .profile { position: relative; flex-shrink: 0; }
+      .word-count {
+        position: absolute;
+        top: 62px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        color: #737982;
+        font-size: 11px;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      .word-list {
+        list-style: none;
+        padding: 36px 0 max(44px, env(safe-area-inset-bottom));
+        margin: 0;
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        overscroll-behavior-y: contain;
+        display: grid;
+        align-content: start;
+        gap: 10px;
+        scrollbar-width: none;
+        /* Карточки мягко растворяются в фоне у границ списка. */
+        -webkit-mask-image: linear-gradient(to bottom, transparent, #000 36px, #000 calc(100% - 44px), transparent);
+        mask-image: linear-gradient(to bottom, transparent, #000 36px, #000 calc(100% - 44px), transparent);
+      }
+      .word-list::-webkit-scrollbar { display: none; }
+      .word-card {
+        padding: 18px 20px;
+        border: 1px solid #eef0f2;
+        border-radius: 20px;
+        background: #fff;
+        box-shadow: 0 2px 6px #333d4b06;
+        color: #34383e;
+        font-size: 17px;
+        line-height: 1.5;
+        overflow-wrap: anywhere;
+      }
+      .word-card.is-new { animation: word-appear 300ms ease both; }
+      @keyframes word-appear {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .word-card.is-new { animation: none; }
+      }
+      button { font: inherit; color: inherit; cursor: pointer; }
+      .profile-button {
+        width: 54px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        padding: 4px;
+        color: #62676e;
+      }
+      .profile-button:disabled { cursor: wait; opacity: .5; }
+      .profile-button > * { grid-area: 1 / 1; }
+      :focus-visible { outline: 2px solid #858d98; outline-offset: 4px; }
+      .profile-button img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
+      .profile-menu {
+        position: absolute;
+        top: 88px;
+        right: 0;
+        width: 230px;
+        padding: 16px;
+        border: 1px solid #eceef0;
+        border-radius: 20px;
+        background: #fff;
+        box-shadow: 0 4px 12px #333d4b0a;
+        z-index: 1;
+      }
+      .profile-name { margin: 0 0 12px; overflow-wrap: anywhere; font-size: 14px; }
+      .profile-menu:not([hidden]) { animation: profile-appear 240ms ease-out both; }
+      @keyframes profile-appear {
+        from { opacity: 0; transform: translateY(6px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .profile-menu:not([hidden]) { animation: none; }
+      }
+      .profile-intro { display: block; margin-bottom: 5px; color: #85898f; font-size: 11px; }
+      .signout { border: 0; border-radius: 12px; background: #e9ebee; padding: 10px 14px; width: 100%; }
+      .status { flex-shrink: 0; margin: 0 4px 12px; color: #62676e; font-size: 13px; line-height: 1.5; }
+      .word-link { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+      .word-link > span { min-width: 0; }
+      .word-translation { color: #85898f; font-size: 14px; text-align: right; }
+      #word-details { margin-top: 32px; }
+      .detail-section { border-top: 1px solid #eef0f2; padding: 22px 0; }
+      .detail-section h2 { margin: 0 0 12px; color: #85898f; font-size: 12px; font-weight: 400; }
+      .detail-section p { margin: 8px 0; font-size: 15px; line-height: 1.7; overflow-wrap: anywhere; }
+      .detail-section .detail-note { color: #85898f; font-size: 13px; }
+      .word-example + .word-example { margin-top: 24px; }
+      .detail-section .example-korean { font-size: 18px; color: #24272b; }
+      .word-action:disabled { opacity: .45; cursor: wait; }
+      .word-action.is-loading { animation: translation-pulse 1200ms ease-in-out infinite; }
+      @keyframes translation-pulse { 50% { opacity: .8; box-shadow: 0 0 12px #333d4b15; } }
+      @media (prefers-reduced-motion: reduce) { .word-action.is-loading { animation: none; } }
+      [hidden] { display: none !important; }
+      .word-card { padding: 0; }
+      .word-link { width: 100%; padding: 18px 20px; border: 0; border-radius: inherit; background: transparent; text-align: left; overflow-wrap: anywhere; line-height: inherit; }
+      .word-page { position: fixed; inset: 0; background: #fff; z-index: 3; }
+      .word-page:not([hidden]) { animation: profile-appear 240ms ease-out both; }
+      .word-actions { display: flex; justify-content: flex-end; gap: 12px; flex-shrink: 0; margin-bottom: 32px; }
+      .word-action { width: 48px; height: 48px; display: grid; place-items: center; border: 1px solid #eceef0; border-radius: 50%; background: #fff; box-shadow: 0 2px 8px #333d4b08; color: #62676e; transition: transform 180ms ease, box-shadow 220ms ease; -webkit-tap-highlight-color: transparent; }
+      .word-action:active { transform: scale(.96); box-shadow: 0 0 12px #333d4b0c; }
+      .word-content { overflow-y: auto; min-height: 0; padding-bottom: max(24px, env(safe-area-inset-bottom)); }
+      .word-title { margin: 0; text-align: center; font-size: 30px; font-weight: 400; line-height: 1.4; overflow-wrap: anywhere; }
+      @media (prefers-reduced-motion: reduce) {
+        .word-page:not([hidden]) { animation: none; }
+        .word-action { transition: none; }
+        .word-action:active { transform: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="workspace">
+      <div class="toolbar">
+        <div class="word-entry" id="word-entry">
+          <input class="word-input" id="new-word" type="text" placeholder="Новое слово" aria-label="Новое слово" autocomplete="off" spellcheck="false" maxlength="120" enterkeyhint="done">
+          <div class="add-slot" id="add-slot" inert>
+            <button class="add-button" type="button" aria-label="Добавить слово" title="Добавить слово">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="profile">
+          <button class="profile-button" id="profile-button" type="button" aria-label="Войти через Google" title="Войти через Google" disabled>
+            <svg id="profile-icon" width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <circle cx="12" cy="8" r="3.5" />
+              <path d="M5 21v-2a7 7 0 0 1 14 0v2" stroke-linecap="round" />
+            </svg>
+            <img id="profile-avatar" alt="" referrerpolicy="no-referrer" hidden>
+            <span id="profile-initial" hidden></span>
+          </button>
+          <div class="word-count" id="word-count" role="status" aria-label="Добавлено слов: 0" title="Добавлено слов">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <path d="M4 4h6a3 3 0 0 1 2 1 3 3 0 0 1 2-1h6v15h-6a3 3 0 0 0-2 1 3 3 0 0 0-2-1H4zM12 5v15" />
+            </svg>
+            <span id="word-count-value">0</span>
+          </div>
+          <div class="profile-menu" id="profile-menu" hidden>
+            <p class="profile-name"><span class="profile-intro">my name is</span><span id="profile-name"></span></p>
+            <button class="signout" id="signout" type="button">Выйти</button>
+          </div>
+        </div>
+      </div>
+      <p class="status" id="auth-status" role="status" hidden></p>
+      <p class="status" id="sync-status" role="status" hidden></p>
+      <button class="signout" id="import-local" type="button" hidden>Сохранить слова с устройства в аккаунт</button>
+      <p class="status" id="word-status" role="status" hidden></p>
+      <ul class="word-list" id="word-list" aria-label="Словарь" tabindex="-1"></ul>
+    </main>
+    <section class="word-page" id="word-page" aria-labelledby="word-title" hidden>
+      <div class="workspace">
+        <nav class="word-actions" aria-label="Действия со словом">
+          <button class="word-action" id="translate-word" type="button" aria-label="Перевести слово" title="Перевести слово">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h12M9 3v2M12 5c-1 6-4 9-9 11M5 8c1 3 4 6 7 7M13 21l4-10 4 10M14.5 17h5" /></svg>
+          </button>
+          <button class="word-action" id="delete-word" type="button" aria-label="Удалить слово" title="Удалить слово">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v5M14 11v5" /></svg>
+          </button>
+          <button class="word-action" id="close-word" type="button" aria-label="Закрыть страницу слова" title="Закрыть">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+          </button>
+        </nav>
+        <p class="status" id="word-page-status" role="status" hidden></p>
+        <div class="word-content"><h1 class="word-title" id="word-title"></h1><div id="word-details"></div></div>
+      </div>
+    </section>
+    <script type="module" src="./app.js"></script>
+    <script type="module" src="./dictionary.js"></script>
+  </body>
+</html>

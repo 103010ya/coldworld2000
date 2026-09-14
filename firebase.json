@@ -1,0 +1,20 @@
+{
+  "auth": {
+    "providers": {
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "coldworld2000",
+        "supportEmail": "103010ya@gmail.com"
+      }
+    }
+  },
+  "firestore": {
+    "database": "words",
+    "location": "asia-northeast3",
+    "edition": "enterprise",
+    "rules": "firestore.rules"
+  },
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs22"
+  }
+}

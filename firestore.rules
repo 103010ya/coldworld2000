@@ -1,0 +1,42 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // users/{uid}/words/{id}: слово, исходный ввод (1–120), разбор или null,
+    // createdAt и updatedAt — серверные даты. Владелец определяется путём.
+    function owner(uid) { return request.auth != null && request.auth.uid == uid; }
+    function text(value, maximum) { return value is string && value.size() > 0 && value.size() <= maximum; }
+    function example(value, kind) {
+      return value is map && value.keys().hasOnly(['kind', 'grammar', 'korean', 'translation'])
+        && value.kind == kind && text(value.grammar, 3000)
+        && text(value.korean, 3000) && text(value.translation, 3000);
+    }
+    function formality(value) {
+      return value is map && value.keys().hasOnly(['level', 'style', 'older', 'younger', 'note'])
+        && value.level is int && value.level >= 1 && value.level <= 3
+        && value.style in ['официальный', 'неофициальный', 'оба']
+        && text(value.older, 3000) && text(value.younger, 3000) && text(value.note, 3000);
+    }
+    function details(value) {
+      return value == null || (value is map
+        && value.keys().hasOnly(['koreanWord', 'translation', 'meaning', 'usage', 'formality', 'examples'])
+        && text(value.koreanWord, 120) && text(value.translation, 3000)
+        && text(value.meaning, 3000) && text(value.usage, 3000)
+        && formality(value.formality) && value.examples is list && value.examples.size() == 4
+        && example(value.examples[0], 'present') && example(value.examples[1], 'past')
+        && example(value.examples[2], 'future') && example(value.examples[3], 'grammar'));
+    }
+    function validWord(value) {
+      return value.keys().hasOnly(['word', 'originalInput', 'details', 'createdAt', 'updatedAt'])
+        && text(value.word, 120) && text(value.originalInput, 120) && details(value.details)
+        && value.createdAt is timestamp && value.updatedAt == request.time;
+    }
+    match /users/{uid}/words/{id} {
+      allow read, delete: if owner(uid);
+      allow create: if owner(uid) && validWord(request.resource.data)
+        && request.resource.data.createdAt == request.time;
+      allow update: if owner(uid) && validWord(request.resource.data)
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.originalInput == resource.data.originalInput;
+    }
+  }
+}
