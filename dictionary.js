@@ -475,6 +475,7 @@ categoryNew.addEventListener('click', () => {
   categoryForm.hidden = false;
   categoryNew.hidden = true;
   showCategoryMessage();
+  categoryName.focus({ preventScroll: true });
 });
 
 categoryForm.addEventListener('submit', async event => {
@@ -499,7 +500,12 @@ categoryForm.addEventListener('submit', async event => {
     categoryName.value = '';
     renderCategories();
     renderWords(readWords());
-    closeCategoryManager();
+    categoryName.blur();
+    categoryForm.hidden = true;
+    categoryNew.hidden = false;
+    showCategoryMessage();
+    const created = [...categoryRows.querySelectorAll('.category-choice')].find(button => button.textContent === category.name);
+    created?.focus({ preventScroll: true });
     showMessage();
   } catch { showCategoryMessage('Не удалось создать категорию. Попробуйте ещё раз.'); }
   finally { categoryForm.querySelector('button').disabled = false; }
