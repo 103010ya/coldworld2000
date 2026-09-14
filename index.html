@@ -298,10 +298,27 @@
       </div>
     </section>
     <script type="module" src="./app.js"></script>
-    <script type="module" src="./dictionary.js?v=20260915b"></script>
+    <script type="module" src="./dictionary.js"></script>
     <script>
       // Safari может игнорировать запрет масштабирования из viewport при жесте двумя пальцами.
       document.addEventListener('gesturestart', event => event.preventDefault(), { passive: false });
+      // После публикации сверяем версию, чтобы телефон не оставался на старом коде.
+      const siteVersion = '__BUILD_VERSION__';
+      async function checkSiteVersion() {
+        if (siteVersion.startsWith('__')) return;
+        try {
+          const response = await fetch(`./version.txt?t=${Date.now()}`, { cache: 'no-store' });
+          if (!response.ok) return;
+          const latest = (await response.text()).trim();
+          if (latest && latest !== siteVersion && new URLSearchParams(location.search).get('v') !== latest) {
+            const url = new URL(location.href);
+            url.searchParams.set('v', latest);
+            location.replace(url);
+          }
+        } catch { /* Без сети остаёмся на доступной версии. */ }
+      }
+      checkSiteVersion();
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) checkSiteVersion(); });
     </script>
   </body>
 </html>

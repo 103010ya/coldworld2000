@@ -30,3 +30,5 @@ jobs:
       - name: Publish
         id: deployment
         uses: actions/deploy-pages@v4
+      - name: Verify fresh site files
+        run: node scripts/verify-pages.mjs
