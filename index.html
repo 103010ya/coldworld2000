@@ -133,8 +133,8 @@
       .category-chip[aria-pressed="true"] { border-color: #dce0e4; color: #252a30; box-shadow: 0 2px 8px #333d4b0c; }
       .category-open { min-width: 144px; padding: 9px 18px; border: 1px solid #e7eaed; border-radius: 999px; background: #fff; box-shadow: 0 2px 8px #333d4b0b; color: #62676e; font: inherit; font-size: 13px; transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease; }
       .category-open:active { transform: scale(.97); border-color: #dce0e4; box-shadow: 0 0 10px #333d4b0c; }
-      .category-manager { position: fixed; inset: 0; z-index: 4; display: grid; place-items: center; padding: 20px; background: #fff9; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
-      .category-panel { width: min(100%, 360px); max-height: calc(100dvh - 40px); overflow-y: auto; scrollbar-width: none; padding: 18px; border: 1px solid #eceef0; border-radius: 22px; background: #fff; box-shadow: 0 8px 30px #333d4b12; }
+      .category-manager { position: fixed; inset: 0 0 auto; height: 100dvh; z-index: 4; display: grid; place-items: center; padding: 20px; background: #fff9; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+      .category-panel { width: min(100%, 360px); max-height: calc(100% - 16px); overflow-y: auto; scrollbar-width: none; padding: 18px; border: 1px solid #eceef0; border-radius: 22px; background: #fff; box-shadow: 0 8px 30px #333d4b12; }
       .category-panel::-webkit-scrollbar { display: none; }
       .category-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
       .category-panel-header h2 { margin: 0; font-size: 16px; font-weight: 400; color: #33383e; }
@@ -207,6 +207,7 @@
       .profile-intro { display: block; margin-bottom: 5px; color: #85898f; font-size: 11px; }
       .signout { border: 0; border-radius: 12px; background: #e9ebee; padding: 10px 14px; width: 100%; }
       .status { flex-shrink: 0; margin: 0 4px 12px; color: #62676e; font-size: 13px; line-height: 1.5; }
+      #sync-status { text-align: center; }
       .word-link { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
       .word-link > span { min-width: 0; }
       .word-translation { color: #85898f; font-size: 14px; }
@@ -276,10 +277,10 @@
         </div>
       </div>
       <p class="status" id="auth-status" role="status" hidden></p>
-      <p class="status" id="sync-status" role="status" hidden></p>
       <button class="signout" id="import-local" type="button" hidden>Сохранить слова с устройства в аккаунт</button>
       <p class="status" id="word-status" role="status" hidden></p>
       <nav class="category-strip" id="category-strip" aria-label="Категории слов"><button class="category-open" id="category-open" type="button" aria-haspopup="dialog" aria-expanded="false">Категории</button></nav>
+      <p class="status" id="sync-status" role="status" hidden></p>
       <ul class="word-list" id="word-list" aria-label="Словарь" tabindex="-1"></ul>
     </main>
     <div class="category-manager" id="category-manager" hidden>

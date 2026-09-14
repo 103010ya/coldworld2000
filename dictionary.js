@@ -450,6 +450,17 @@ function showCategoryMessage(text = '') {
   categoryStatus.hidden = !text;
 }
 
+function updateCategoryViewport() {
+  if (categoryManager.hidden || !window.visualViewport) return;
+  const viewport = window.visualViewport;
+  // На телефоне центрируем окно в видимой области над клавиатурой.
+  categoryManager.style.top = `${viewport.offsetTop}px`;
+  categoryManager.style.height = `${viewport.height}px`;
+  if (!categoryForm.hidden) categoryName.scrollIntoView({ block: 'nearest' });
+}
+window.visualViewport?.addEventListener('resize', updateCategoryViewport);
+window.visualViewport?.addEventListener('scroll', updateCategoryViewport);
+
 function closeCategoryManager() {
   categoryManager.hidden = true;
   main.inert = false;
@@ -465,6 +476,7 @@ categoryOpen.addEventListener('click', () => {
   categoryManager.hidden = false;
   categoryOpen.setAttribute('aria-expanded', 'true');
   main.inert = true;
+  updateCategoryViewport();
   categoryClose.focus({ preventScroll: true });
 });
 categoryClose.addEventListener('click', closeCategoryManager);
@@ -475,7 +487,8 @@ categoryNew.addEventListener('click', () => {
   categoryForm.hidden = false;
   categoryNew.hidden = true;
   showCategoryMessage();
-  categoryName.focus({ preventScroll: true });
+  categoryName.focus();
+  updateCategoryViewport();
 });
 
 categoryForm.addEventListener('submit', async event => {
