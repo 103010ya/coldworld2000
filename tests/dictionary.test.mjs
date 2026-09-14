@@ -101,3 +101,23 @@ test('перевод не запускается без подтверждённ
   await app.node('#translate-word').events.click();
   assert.equal(calls, 0);
 });
+test('облачный перевод вызывает Firebase для сохранённого слова', async () => {
+  const app = setup();
+  let called;
+  app.context.confirmCloudWord = async () => {};
+  app.context.requestCloudTranslation = async (uid, id) => { called = {uid,id}; return analysis; };
+  app.run("account = {uid:'alice',ready:true,words:[{id:'1',word:'apple'}]}; openWord(readWords()[0],null)");
+  await app.node('#translate-word').events.click();
+  assert.deepEqual(called,{uid:'alice',id:'1'});
+  assert.equal(app.node('#word-page-status').hidden,true);
+});
+test('публичный гостевой перевод предлагает Google-вход', async () => {
+  const app = setup();
+  app.context.location.hostname = '103010ya.github.io';
+  let calls = 0;
+  app.context.fetch = async () => { calls++; };
+  app.run('openWord(readWords()[0],null)');
+  await app.node('#translate-word').events.click();
+  assert.equal(calls,0);
+  assert.match(app.node('#word-page-status').textContent,/Войдите через Google/);
+});
