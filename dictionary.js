@@ -138,11 +138,23 @@ function renderWords(words, addedWord) {
     const label = document.createElement('span');
     label.textContent = word.word;
     link.append(label);
-    if (word.details) {
-      const translation = document.createElement('span');
-      translation.className = 'word-translation';
-      translation.textContent = word.details.translation;
-      link.append(translation);
+    const categoryName = categories.find(category => category.id === word.categoryId)?.name;
+    if (word.details || categoryName) {
+      const meta = document.createElement('span');
+      meta.className = 'word-meta';
+      if (word.details) {
+        const translation = document.createElement('span');
+        translation.className = 'word-translation';
+        translation.textContent = word.details.translation;
+        meta.append(translation);
+      }
+      if (categoryName) {
+        const categoryLabel = document.createElement('span');
+        categoryLabel.className = 'word-category-label';
+        categoryLabel.textContent = categoryName;
+        meta.append(categoryLabel);
+      }
+      link.append(meta);
     }
     link.addEventListener('click', () => openWord(word, link));
     card.append(link);
@@ -445,7 +457,6 @@ function renderCategories() {
     remove.type = 'button';
     remove.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>';
     remove.setAttribute('aria-label', `Удалить категорию ${category.name}`);
-    remove.title = `Удалить категорию ${category.name}`;
     remove.addEventListener('click', () => deleteCategory(category, remove));
     row.append(name, remove);
     return row;
@@ -474,7 +485,9 @@ categoryForm.addEventListener('submit', async event => {
     else localStorage.setItem(categoriesKey, JSON.stringify([...readCategories(), category]));
     if (uid !== account.uid) return;
     categoryName.value = '';
-    selectedCategory = category.id;
+    selectedCategory = 'all';
+    categoryManager.hidden = true;
+    categoryName.blur();
     renderCategories();
     renderWords(readWords());
     list.scrollTop = 0;
