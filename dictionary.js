@@ -5,6 +5,7 @@ import { validateAnalysis } from './translation-schema.mjs';
 let account = { uid: null, ready: false, words: [], error: '' };
 let accountVersion = 0;
 const pendingAdds = new Map();
+const pendingCategories = new Map();
 const importButton = document.querySelector('#import-local');
 const syncStatus = document.querySelector('#sync-status');
 const storageKey = 'coldworld2000:local-words';
@@ -150,6 +151,18 @@ function renderWords(words, addedWord) {
     }
     link.addEventListener('click', () => openWord(word, link));
     card.append(link);
+    if (!word.details) {
+      const quickTranslate = document.createElement('button');
+      quickTranslate.type = 'button';
+      quickTranslate.className = 'quick-translate';
+      quickTranslate.innerHTML = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h12M9 3v2M12 5c-1 6-4 9-9 11M5 8c1 3 4 6 7 7M13 21l4-10 4 10M14.5 17h5" /></svg>';
+      const busy = pending.has(word.id) || pendingAdds.get(word.id)?.saving;
+      quickTranslate.disabled = Boolean(busy);
+      quickTranslate.classList.toggle('is-loading', Boolean(busy));
+      quickTranslate.setAttribute('aria-label', `Перевести «${word.word}»`);
+      quickTranslate.addEventListener('click', () => translateWord(word, false));
+      card.append(quickTranslate);
+    }
     fragment.append(card);
   }
   list.replaceChildren(fragment);
@@ -206,6 +219,7 @@ async function addWord() {
       const item = pendingAdds.get(entry.id);
       if (item) item.saving = false;
       if (account.uid === uid && account.words.some(word => word.id === entry.id)) pendingAdds.delete(entry.id);
+      if (account.uid === uid) renderWords(readWords());
       updateTranslationState();
     }
   } catch {
@@ -290,15 +304,18 @@ function renderDetails(details) {
   });
 }
 
-translateButton.addEventListener('click', async () => {
-  if (!selectedWord || pending.has(selectedWord.id)) return;
-  const target = { ...selectedWord };
+async function translateWord(word, inPage) {
+  if (!word || word.details || pending.has(word.id) || pendingAdds.get(word.id)?.saving) return;
+  const target = { ...word };
   const uid = account.uid;
   const version = accountVersion;
   pending.add(target.id);
   updateTranslationState();
-  pageMessage.textContent = 'Переводим и готовим примеры…';
-  pageMessage.hidden = false;
+  renderWords(readWords());
+  if (inPage) {
+    pageMessage.textContent = 'Переводим и готовим примеры…';
+    pageMessage.hidden = false;
+  } else showMessage('Переводим и готовим примеры…');
   try {
     // Сначала подтверждаем сохранение слова, затем запрашиваем перевод.
     if (uid) await confirmCloudWord(uid, target.id);
@@ -321,7 +338,17 @@ translateButton.addEventListener('click', async () => {
     const details = validateAnalysis(data);
     if (version !== accountVersion) return;
     if (uid) {
-      if (selectedWord?.id === target.id) pageMessage.hidden = true;
+      const translated = { ...readWords().find(word => word.id === target.id), word: details.koreanWord, details };
+      account.words = account.words.map(word => word.id === target.id ? translated : word);
+      const adding = pendingAdds.get(target.id);
+      if (adding) adding.entry = translated;
+      if (selectedWord?.id === target.id) {
+        selectedWord = translated;
+        document.querySelector('#word-title').textContent = details.koreanWord;
+        renderDetails(details);
+        pageMessage.hidden = true;
+      }
+      if (!inPage) showMessage();
       return;
     }
     const words = readWords();
@@ -337,16 +364,23 @@ translateButton.addEventListener('click', async () => {
       renderDetails(details);
       pageMessage.hidden = true;
     }
+    if (!inPage) showMessage();
   } catch (error) {
-    if (version === accountVersion && selectedWord?.id === target.id) {
-      pageMessage.textContent = error.name === 'TimeoutError' ? 'Ответ задерживается. Попробуйте ещё раз.' : error.message || 'Не удалось перевести слово.';
-      pageMessage.hidden = false;
+    if (version === accountVersion) {
+      const messageText = error.name === 'TimeoutError' ? 'Ответ задерживается. Попробуйте ещё раз.' : error.message || 'Не удалось перевести слово.';
+      if (inPage && selectedWord?.id === target.id) {
+        pageMessage.textContent = messageText;
+        pageMessage.hidden = false;
+      } else if (!inPage) showMessage(messageText);
     }
   } finally {
     pending.delete(target.id);
     updateTranslationState();
+    if (version === accountVersion) renderWords(readWords());
   }
-});
+}
+
+translateButton.addEventListener('click', () => translateWord(selectedWord, true));
 
 observeCloud(next => {
   if (account.uid !== next.uid) {
@@ -354,6 +388,9 @@ observeCloud(next => {
     if (!page.hidden) closeWord();
   }
   account = next;
+  for (const [id, item] of pendingCategories) {
+    if (item.uid === next.uid && !item.saving && next.categories.some(category => category.id === id)) pendingCategories.delete(id);
+  }
   renderCategories();
   for (const [id, item] of pendingAdds) {
     if (item.uid === next.uid && !item.saving && next.words.some(word => word.id === id)) pendingAdds.delete(id);
@@ -392,7 +429,13 @@ importButton.addEventListener('click', async () => {
 });
 
 function readCategories() {
-  if (account.uid) return account.categories || [];
+  if (account.uid) {
+    const categories = account.categories || [];
+    const extra = [...pendingCategories.values()]
+      .filter(item => item.uid === account.uid && !categories.some(category => category.id === item.category.id))
+      .map(item => item.category);
+    return [...categories, ...extra];
+  }
   const saved = JSON.parse(localStorage.getItem(categoriesKey) || '[]');
   if (!Array.isArray(saved)) throw new Error('Некорректные категории');
   return saved;
@@ -437,6 +480,7 @@ function renderCategories() {
     remove.type = 'button';
     remove.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>';
     remove.setAttribute('aria-label', `Удалить категорию ${category.name}`);
+    remove.disabled = Boolean(pendingCategories.get(category.id)?.saving);
     remove.addEventListener('click', () => deleteCategory(category, remove));
     row.append(remove);
     return row;
@@ -503,10 +547,7 @@ categoryForm.addEventListener('submit', async event => {
   const uid = account.uid;
   categoryForm.querySelector('button').disabled = true;
   try {
-    if (uid) {
-      await createCloudCategory(uid, category);
-      if (!account.categories.some(item => item.id === category.id)) account.categories = [...account.categories, category];
-    }
+    if (uid) pendingCategories.set(category.id, { uid, category, saving: true });
     else localStorage.setItem(categoriesKey, JSON.stringify([...readCategories(), category]));
     if (uid !== account.uid) return;
     categoryName.value = '';
@@ -519,7 +560,22 @@ categoryForm.addEventListener('submit', async event => {
     const created = [...categoryRows.querySelectorAll('.category-choice')].find(button => button.textContent === category.name);
     created?.focus({ preventScroll: true });
     showMessage();
-  } catch { showCategoryMessage('Не удалось создать категорию. Попробуйте ещё раз.'); }
+    if (uid) {
+      await createCloudCategory(uid, category);
+      const pendingCategory = pendingCategories.get(category.id);
+      if (pendingCategory) pendingCategory.saving = false;
+      if (account.uid === uid && account.categories?.some(item => item.id === category.id)) pendingCategories.delete(category.id);
+      if (account.uid === uid) renderCategories();
+    }
+  } catch {
+    pendingCategories.delete(category.id);
+    if (uid !== account.uid) return;
+    renderCategories();
+    categoryName.value = name;
+    categoryForm.hidden = false;
+    categoryNew.hidden = true;
+    showCategoryMessage('Не удалось сохранить категорию. Название осталось в поле — попробуйте ещё раз.');
+  }
   finally { categoryForm.querySelector('button').disabled = false; }
 });
 

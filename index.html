@@ -227,8 +227,11 @@
       @keyframes translation-pulse { 50% { opacity: .8; box-shadow: 0 0 12px #333d4b15; } }
       @media (prefers-reduced-motion: reduce) { .word-action.is-loading { animation: none; } }
       [hidden] { display: none !important; }
-      .word-card { padding: 0; }
-      .word-link { width: 100%; padding: 18px 20px; border: 0; border-radius: inherit; background: transparent; text-align: left; overflow-wrap: anywhere; line-height: inherit; }
+      .word-card { display: flex; align-items: center; padding: 0; }
+      .word-link { flex: 1; min-width: 0; padding: 18px 20px; border: 0; border-radius: inherit; background: transparent; text-align: left; overflow-wrap: anywhere; line-height: inherit; }
+      .quick-translate { display: grid; place-items: center; flex: 0 0 38px; width: 38px; height: 38px; margin-right: 12px; padding: 0; border: 1px solid #eceef0; border-radius: 50%; background: #fff; color: #737982; box-shadow: 0 2px 8px #333d4b08; }
+      .quick-translate:disabled { opacity: .5; cursor: wait; }
+      .quick-translate.is-loading { animation: translation-pulse 1200ms ease-in-out infinite; }
       .word-page { position: fixed; inset: 0; background: #fff; z-index: 3; }
       .word-page:not([hidden]) { animation: profile-appear 240ms ease-out both; }
       .word-actions { display: flex; justify-content: flex-end; gap: 12px; flex-shrink: 0; margin-bottom: 32px; }

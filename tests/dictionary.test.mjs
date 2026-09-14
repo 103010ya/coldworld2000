@@ -14,6 +14,10 @@ function setup(saved = ['먹었어요']) {
     replaceChildren(...children) { this.children = children; }
     getBoundingClientRect() { return { bottom: 100 }; }
     querySelector() { return new Element(); }
+    querySelectorAll(selector) {
+      return this.children.flatMap(child => [child, ...child.querySelectorAll(selector)])
+        .filter(child => child.className?.split(' ').includes(selector.slice(1)));
+    }
     setAttribute() {}
     addEventListener(type, callback) { this.events[type] = callback; }
     dispatchEvent(event) { this.events[event.type]?.(event); }
@@ -21,18 +25,18 @@ function setup(saved = ['먹었어요']) {
     blur() { this.focused = false; }
   }
   const node = selector => { if (!nodes.has(selector)) nodes.set(selector, new Element()); return nodes.get(selector); };
-  let storage = JSON.stringify(saved);
+  const storage = new Map([['coldworld2000:local-words', JSON.stringify(saved)]]);
   const context = vm.createContext({
     document: { querySelector: node, createElement: () => new Element(), createDocumentFragment: () => new Element(), addEventListener() {} },
     window: { addEventListener() {} },
-    localStorage: { getItem: () => storage, setItem: (_, value) => { storage = value; } },
+    localStorage: { getItem: key => storage.get(key) || null, setItem: (key, value) => { storage.set(key, value); } },
     observeCloud: callback => callback({ uid: null, ready: true, words: [], categories: [], error: '' }),
     setCloudWordCategory: async () => {}, createCloudCategory: async () => {}, deleteCloudCategory: async () => {},
     location: { hostname: 'localhost' },
     validateAnalysis, matchesSearch, AbortSignal, Event, fetch: async () => ({ ok: true, json: async () => structuredClone(analysis) }),
   });
   vm.runInContext(source, context);
-  return { context, node, run: code => vm.runInContext(code, context), words: () => JSON.parse(storage) };
+  return { context, node, run: code => vm.runInContext(code, context), words: () => JSON.parse(storage.get('coldworld2000:local-words')) };
 }
 test('старые слова сохраняются при добавлении и не дублируются', async () => {
   const app = setup(['apple']);
@@ -140,4 +144,39 @@ test('слово и пустое поле появляются до ответа
   finish();
   await saving;
   assert.equal(app.node('#new-word').value,'next');
+});
+
+test('кнопка на карточке переводит слово без открытия страницы', async () => {
+  const app = setup([{ id: 'one', word: '먹었어요', originalInput: '먹었어요', details: null }]);
+  const card = app.node('#word-list').children[0].children[0];
+  assert.equal(card.children.length, 2);
+  await card.children[1].events.click();
+  assert.equal(app.words()[0].word, '먹다');
+  assert.equal(app.node('#word-page').hidden, undefined);
+  assert.equal(app.node('#word-list').children[0].children[0].children.length, 1);
+});
+
+test('новая категория видна до ответа облачного сохранения', async () => {
+  const app = setup([]);
+  let finish;
+  app.context.createCloudCategory = () => new Promise(resolve => { finish = resolve; });
+  app.run("account = {uid:'alice',ready:true,words:[],categories:[]}");
+  app.node('#category-name').value = 'Работа';
+  const saving = app.node('#category-form').events.submit({ preventDefault() {} });
+  assert.equal(app.run('readCategories()[0].name'), 'Работа');
+  assert.equal(app.node('#category-form').hidden, true);
+  finish();
+  await saving;
+  assert.equal(app.run('readCategories()[0].name'), 'Работа');
+});
+
+test('ошибка облачного сохранения возвращает название категории в поле', async () => {
+  const app = setup([]);
+  app.context.createCloudCategory = async () => { throw new Error('Нет сети'); };
+  app.run("account = {uid:'alice',ready:true,words:[],categories:[]}");
+  app.node('#category-name').value = 'Работа';
+  await app.node('#category-form').events.submit({ preventDefault() {} });
+  assert.equal(app.run('readCategories().length'), 0);
+  assert.equal(app.node('#category-form').hidden, false);
+  assert.equal(app.node('#category-name').value, 'Работа');
 });
