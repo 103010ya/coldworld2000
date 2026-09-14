@@ -11,6 +11,10 @@ const storageKey = 'coldworld2000:local-words';
 const categoriesKey = 'coldworld2000:local-categories';
 const categoryStrip = document.querySelector('#category-strip');
 const categoryManager = document.querySelector('#category-manager');
+const categoryOpen = document.querySelector('#category-open');
+const categoryClose = document.querySelector('#category-close');
+const categoryNew = document.querySelector('#category-new');
+const categoryStatus = document.querySelector('#category-status');
 const categoryForm = document.querySelector('#category-form');
 const categoryName = document.querySelector('#category-name');
 const categoryRows = document.querySelector('#category-rows');
@@ -58,6 +62,7 @@ function closeWord() {
 closeButton.addEventListener('click', closeWord);
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && !page.hidden) closeWord();
+  else if (event.key === 'Escape' && !categoryManager.hidden) closeCategoryManager();
 });
 document.querySelector('#delete-word').addEventListener('click', async () => {
   if (selectedWord === null) return;
@@ -81,14 +86,14 @@ document.querySelector('#delete-word').addEventListener('click', async () => {
 });
 
 function layoutList() {
-  const anchors = [document.querySelector('.toolbar'), syncStatus, importButton, message, categoryStrip, categoryManager];
+  const anchors = [document.querySelector('.toolbar'), syncStatus, importButton, message, categoryStrip];
   const bottom = Math.max(0, ...anchors.filter(element => element && !element.hidden).map(element => element.getBoundingClientRect?.().bottom || 0));
   list.style.top = `${Math.max(110, Math.ceil(bottom + 8))}px`;
 }
 window.addEventListener('resize', layoutList);
 if (window.ResizeObserver) {
   const observer = new window.ResizeObserver(layoutList);
-  for (const element of [categoryStrip, categoryManager, document.querySelector('.toolbar')]) observer.observe(element);
+  for (const element of [categoryStrip, document.querySelector('.toolbar')]) observer.observe(element);
 }
 
 const normalizeWord = (word) => word.normalize('NFC').trim().replace(/\s+/gu, ' ');
@@ -125,8 +130,7 @@ function renderWords(words, addedWord) {
   const categories = readCategories();
   for (const word of words.filter(word => {
     const category = categories.some(item => item.id === word.categoryId) ? word.categoryId : null;
-    return matchesSearch(word, input.value) && (selectedCategory === 'all' ||
-      (selectedCategory === 'uncategorized' ? !category : selectedCategory === category));
+    return matchesSearch(word, input.value) && (selectedCategory === 'all' || selectedCategory === category);
   })) {
     const card = document.createElement('li');
     card.className = 'word-card';
@@ -178,8 +182,7 @@ async function addWord() {
   if (!account.ready) { showMessage('Дождитесь загрузки словаря.'); return; }
   const version = accountVersion;
   const uid = account.uid;
-  const categoryId = selectedCategory !== 'all' && selectedCategory !== 'uncategorized' ? selectedCategory : null;
-  const entry = { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, word, originalInput: word, details: null, categoryId };
+  const entry = { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, word, originalInput: word, details: null, categoryId: null };
   try {
     const words = readWords();
     if (words.some(saved => wordKey(saved.word) === wordKey(word) || wordKey(saved.originalInput || saved.word) === wordKey(word))) {
@@ -188,6 +191,9 @@ async function addWord() {
     }
     if (uid) pendingAdds.set(entry.id, { uid, entry, saving: true });
     else localStorage.setItem(storageKey, JSON.stringify([entry, ...words]));
+    // Новые слова начинают без категории и сразу видны в общем списке.
+    selectedCategory = 'all';
+    renderCategories();
     // Интерфейс отвечает сразу; сеть больше не задерживает ввод следующего слова.
     renderWords(readWords(), entry);
     list.scrollTop = 0;
@@ -408,58 +414,76 @@ function renderCategorySelect() {
 
 function renderCategories() {
   const categories = readCategories();
-  if (!categories.some(item => item.id === selectedCategory) && !['all','uncategorized'].includes(selectedCategory)) selectedCategory = 'all';
-  const buttons = [{id:'all',name:'Все'}, {id:'uncategorized',name:'Без категории'}, ...categories];
-  categoryStrip.replaceChildren(...buttons.map(category => {
-    const chip = document.createElement('button');
-    chip.className = 'category-chip';
-    chip.type = 'button';
-    chip.textContent = category.name;
-    chip.setAttribute('aria-pressed', String(selectedCategory === category.id));
-    chip.addEventListener('click', () => {
+  if (selectedCategory !== 'all' && !categories.some(item => item.id === selectedCategory)) selectedCategory = 'all';
+  categoryRows.replaceChildren(...[{ id: 'all', name: 'Все' }, ...categories].map(category => {
+    const row = document.createElement('div');
+    row.className = 'category-row';
+    const choice = document.createElement('button');
+    choice.className = 'category-choice';
+    choice.type = 'button';
+    choice.textContent = category.name;
+    choice.setAttribute('aria-pressed', String(selectedCategory === category.id));
+    choice.addEventListener('click', () => {
       selectedCategory = category.id;
       renderCategories();
       renderWords(readWords());
       list.scrollTop = 0;
+      closeCategoryManager();
     });
-    return chip;
-  }));
-  const manage = document.createElement('button');
-  manage.className = 'category-chip';
-  manage.type = 'button';
-  manage.textContent = '+';
-  manage.setAttribute('aria-label', 'Управлять категориями');
-  manage.addEventListener('click', () => {
-    categoryManager.hidden = !categoryManager.hidden;
-    layoutList();
-    if (!categoryManager.hidden) categoryName.focus();
-  });
-  categoryStrip.append(manage);
-  categoryRows.replaceChildren(...categories.map(category => {
-    const row = document.createElement('div');
-    row.className = 'category-row';
-    const name = document.createElement('span');
-    name.textContent = category.name;
+    row.append(choice);
+    if (category.id === 'all') return row;
     const remove = document.createElement('button');
     remove.className = 'category-remove';
     remove.type = 'button';
     remove.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>';
     remove.setAttribute('aria-label', `Удалить категорию ${category.name}`);
     remove.addEventListener('click', () => deleteCategory(category, remove));
-    row.append(name, remove);
+    row.append(remove);
     return row;
   }));
   if (selectedWord) renderCategorySelect();
   layoutList();
 }
 
+function showCategoryMessage(text = '') {
+  categoryStatus.textContent = text;
+  categoryStatus.hidden = !text;
+}
+
+function closeCategoryManager() {
+  categoryManager.hidden = true;
+  main.inert = false;
+  categoryOpen.setAttribute('aria-expanded', 'false');
+  categoryForm.hidden = true;
+  categoryNew.hidden = false;
+  categoryName.blur();
+  showCategoryMessage();
+  categoryOpen.focus({ preventScroll: true });
+}
+
+categoryOpen.addEventListener('click', () => {
+  categoryManager.hidden = false;
+  categoryOpen.setAttribute('aria-expanded', 'true');
+  main.inert = true;
+  categoryClose.focus({ preventScroll: true });
+});
+categoryClose.addEventListener('click', closeCategoryManager);
+categoryManager.addEventListener('click', event => {
+  if (event.target === categoryManager) closeCategoryManager();
+});
+categoryNew.addEventListener('click', () => {
+  categoryForm.hidden = false;
+  categoryNew.hidden = true;
+  showCategoryMessage();
+});
+
 categoryForm.addEventListener('submit', async event => {
   event.preventDefault();
   const name = normalizeWord(categoryName.value);
   if (!name) return;
-  if (!account.ready) { showMessage('Дождитесь загрузки категорий.'); return; }
+  if (!account.ready) { showCategoryMessage('Дождитесь загрузки категорий.'); return; }
   if (readCategories().some(category => category.name.toLocaleLowerCase() === name.toLocaleLowerCase())) {
-    showMessage('Такая категория уже есть.');
+    showCategoryMessage('Такая категория уже есть.');
     return;
   }
   const category = { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, name };
@@ -473,14 +497,11 @@ categoryForm.addEventListener('submit', async event => {
     else localStorage.setItem(categoriesKey, JSON.stringify([...readCategories(), category]));
     if (uid !== account.uid) return;
     categoryName.value = '';
-    selectedCategory = 'all';
-    categoryManager.hidden = true;
-    categoryName.blur();
     renderCategories();
     renderWords(readWords());
-    list.scrollTop = 0;
+    closeCategoryManager();
     showMessage();
-  } catch { showMessage('Не удалось создать категорию. Попробуйте ещё раз.'); }
+  } catch { showCategoryMessage('Не удалось создать категорию. Попробуйте ещё раз.'); }
   finally { categoryForm.querySelector('button').disabled = false; }
 });
 
@@ -503,7 +524,7 @@ async function deleteCategory(category, button) {
     renderCategories();
     renderWords(readWords());
     showMessage();
-  } catch { showMessage('Не удалось удалить категорию. Слова сохранены. Попробуйте ещё раз.'); }
+  } catch { showCategoryMessage('Не удалось удалить категорию. Слова сохранены. Попробуйте ещё раз.'); }
   finally { button.disabled = false; }
 }
 
