@@ -162,9 +162,11 @@ async function addWord() {
     else localStorage.setItem(storageKey, JSON.stringify([entry, ...words]));
     // Интерфейс отвечает сразу; сеть больше не задерживает ввод следующего слова.
     renderWords(readWords(), entry);
+    list.scrollTop = 0;
     input.value = '';
     input.dispatchEvent(new Event('input', { bubbles: true }));
-    input.focus();
+    // На телефоне клавиатура закрывается и не заслоняет новую карточку.
+    input.blur();
     if (uid) {
       await saveNewWord(uid, entry);
       const item = pendingAdds.get(entry.id);

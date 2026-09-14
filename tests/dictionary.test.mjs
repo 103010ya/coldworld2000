@@ -15,6 +15,7 @@ function setup(saved = ['먹었어요']) {
     addEventListener(type, callback) { this.events[type] = callback; }
     dispatchEvent(event) { this.events[event.type]?.(event); }
     focus() { this.focused = true; }
+    blur() { this.focused = false; }
   }
   const node = selector => { if (!nodes.has(selector)) nodes.set(selector, new Element()); return nodes.get(selector); };
   let storage = JSON.stringify(saved);
@@ -83,6 +84,7 @@ test('облачное добавление ожидает подтвержде�
   assert.equal(saved.uid, 'alice');
   assert.equal(saved.word.word, 'apple');
   assert.equal(app.node('#new-word').value, '');
+  assert.equal(app.node('#word-list').scrollTop, 0);
 });
 test('ошибка облачного сохранения оставляет введённое слово', async () => {
   const app = setup();
