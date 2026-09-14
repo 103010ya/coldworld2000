@@ -1,5 +1,5 @@
 import { matchesSearch } from './search.js';
-import { observeCloud, saveNewWord, requestCloudTranslation, removeCloudWord, setCloudWordCategory, createCloudCategory, deleteCloudCategory, confirmCloudWord } from './cloud-store.js';
+import { observeCloud, saveNewWord, requestCloudTranslation, removeCloudWord, setCloudWordCategory, createCloudCategory, deleteCloudCategory, confirmCloudWord } from './cloud-store.js?v=20260915b';
 import { validateAnalysis } from './translation-schema.mjs';
 
 let account = { uid: null, ready: false, words: [], error: '' };
