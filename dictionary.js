@@ -396,12 +396,14 @@ function renderCategorySelect() {
   const categories = readCategories();
   const options = [{ id: '', name: 'Без категории' }, ...categories];
   categorySelect.replaceChildren(...options.map(category => {
-    const option = document.createElement('option');
-    option.value = category.id;
-    option.textContent = category.name;
-    return option;
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'category-chip';
+    chip.textContent = category.name;
+    chip.setAttribute('aria-pressed', String((selectedWord?.categoryId || '') === category.id));
+    chip.addEventListener('click', () => setWordCategory(category.id));
+    return chip;
   }));
-  categorySelect.value = selectedWord?.categoryId || '';
 }
 
 function renderCategories() {
@@ -441,8 +443,9 @@ function renderCategories() {
     const remove = document.createElement('button');
     remove.className = 'category-remove';
     remove.type = 'button';
-    remove.textContent = 'Удалить';
+    remove.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>';
     remove.setAttribute('aria-label', `Удалить категорию ${category.name}`);
+    remove.title = `Удалить категорию ${category.name}`;
     remove.addEventListener('click', () => deleteCategory(category, remove));
     row.append(name, remove);
     return row;
@@ -503,12 +506,14 @@ async function deleteCategory(category, button) {
   finally { button.disabled = false; }
 }
 
-categorySelect.addEventListener('change', async () => {
-  if (!selectedWord) return;
+let categorySaving = false;
+async function setWordCategory(categoryId) {
+  if (!selectedWord || categorySaving || (selectedWord.categoryId || '') === categoryId) return;
   const target = selectedWord;
-  const categoryId = categorySelect.value || null;
+  categoryId ||= null;
   const uid = account.uid;
-  categorySelect.disabled = true;
+  categorySaving = true;
+  for (const chip of categorySelect.children) chip.disabled = true;
   try {
     if (uid) {
       await setCloudWordCategory(uid, target.id, categoryId);
@@ -522,12 +527,15 @@ categorySelect.addEventListener('change', async () => {
       selectedWord = words.find(word => word.id === target.id);
       renderWords(words);
     }
+    renderCategorySelect();
     showMessage();
   } catch {
-    categorySelect.value = target.categoryId || '';
     pageMessage.textContent = 'Не удалось изменить категорию. Попробуйте ещё раз.';
     pageMessage.hidden = false;
-  } finally { categorySelect.disabled = false; }
-});
+  } finally {
+    categorySaving = false;
+    for (const chip of categorySelect.children) chip.disabled = false;
+  }
+}
 
 renderCategories();

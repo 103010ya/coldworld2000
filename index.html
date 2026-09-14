@@ -22,7 +22,7 @@
         font-family: Arial, sans-serif;
       }
 
-      * { box-sizing: border-box; }
+      * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
       .workspace {
         width: min(100%, 720px);
         height: 100%;
@@ -86,8 +86,7 @@
       }
       .word-input:focus {
         outline: none;
-        border-color: #e1e4e8;
-        box-shadow: 0 0 12px #333d4b0c;
+        border-color: #dce0e4;
       }
       .word-input::placeholder { color: #85898f; }
       .profile { position: relative; flex-shrink: 0; }
@@ -132,11 +131,14 @@
       .category-chip[aria-pressed="true"] { border-color: #dce0e4; color: #252a30; box-shadow: 0 2px 8px #333d4b0c; }
       .category-manager { flex-shrink: 0; padding: 12px; margin-bottom: 12px; border: 1px solid #eceef0; border-radius: 18px; box-shadow: 0 2px 8px #333d4b08; }
       .category-form { display: flex; gap: 8px; }
-      .category-form input { min-width: 0; flex: 1; padding: 10px 12px; border: 1px solid #eceef0; border-radius: 12px; font: inherit; font-size: 14px; }
-      .category-form button, .category-remove { border: 0; border-radius: 12px; background: #f1f2f4; padding: 10px 12px; font-size: 13px; }
-      .category-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 2px 0; font-size: 14px; }
+      .category-form input { min-width: 0; flex: 1; height: 42px; padding: 0 14px; border: 1px solid #eceef0; border-radius: 14px; background: #fff; font: inherit; font-size: 14px; transition: border-color 180ms ease, box-shadow 180ms ease; }
+      .category-form input:focus { outline: none; border-color: #dce0e4; }
+      .category-form button, .category-remove { display: grid; place-items: center; flex: 0 0 42px; width: 42px; height: 42px; padding: 0; border: 1px solid #eceef0; border-radius: 14px; background: #fff; color: #62676e; box-shadow: 0 2px 8px #333d4b08; }
+      .category-form button:active, .category-remove:active { transform: scale(.96); }
+      .category-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 50px; padding: 8px 0 0; font-size: 14px; }
       .category-row span { overflow-wrap: anywhere; }
-      .category-select { width: 100%; padding: 12px; border: 1px solid #eceef0; border-radius: 12px; background: #fff; font: inherit; font-size: 14px; }
+      .word-categories { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+      .word-categories .category-chip { max-width: 100%; overflow-wrap: anywhere; white-space: normal; text-align: center; }
       .word-card {
         padding: 18px 20px;
         border: 1px solid #eef0f2;
@@ -167,7 +169,7 @@
       }
       .profile-button:disabled { cursor: wait; opacity: .5; }
       .profile-button > * { grid-area: 1 / 1; }
-      :focus-visible { outline: 2px solid #858d98; outline-offset: 4px; }
+      :focus-visible { outline: 2px solid #dce0e4; outline-offset: 2px; }
       .profile-button img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
       .profile-menu {
         position: absolute;
@@ -266,7 +268,7 @@
       <div class="category-manager" id="category-manager" hidden>
         <form class="category-form" id="category-form">
           <input id="category-name" type="text" maxlength="40" placeholder="Название категории" aria-label="Название категории">
-          <button type="submit">Создать</button>
+          <button type="submit" aria-label="Создать категорию" title="Создать категорию"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg></button>
         </form>
         <div id="category-rows"></div>
       </div>
@@ -286,7 +288,7 @@
           </button>
         </nav>
         <p class="status" id="word-page-status" role="status" hidden></p>
-        <div class="word-content"><h1 class="word-title" id="word-title"></h1><div class="detail-section"><label for="word-category">Категория</label><select class="category-select" id="word-category" aria-label="Категория слова"></select></div><div id="word-details"></div></div>
+        <div class="word-content"><h1 class="word-title" id="word-title"></h1><div class="detail-section"><h2>Категория</h2><div class="word-categories" id="word-category" role="group" aria-label="Категория слова"></div></div><div id="word-details"></div></div>
       </div>
     </section>
     <script type="module" src="./app.js"></script>
