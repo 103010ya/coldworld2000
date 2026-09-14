@@ -456,7 +456,6 @@ function updateCategoryViewport() {
   // На телефоне центрируем окно в видимой области над клавиатурой.
   categoryManager.style.top = `${viewport.offsetTop}px`;
   categoryManager.style.height = `${viewport.height}px`;
-  if (!categoryForm.hidden) categoryName.scrollIntoView({ block: 'nearest' });
 }
 window.visualViewport?.addEventListener('resize', updateCategoryViewport);
 window.visualViewport?.addEventListener('scroll', updateCategoryViewport);
