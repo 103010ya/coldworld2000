@@ -15,7 +15,7 @@ const port = Number(process.env.PORT || 8001);
 const hosts = new Set(['localhost', '127.0.0.1', ...Object.values(networkInterfaces()).flat().filter(Boolean).map(item => item.address)]);
 const publicFiles = new Map([
   ['/', ['index.html', 'text/html']], ['/index.html', ['index.html', 'text/html']],
-  ...['app.js', 'cloud-store.js', 'dictionary.js', 'firebase-config.js', 'translation-schema.mjs'].map(name => [`/${name}`, [name, 'text/javascript']]),
+  ...['app.js', 'cloud-store.js', 'dictionary.js', 'search.js', 'firebase-config.js', 'translation-schema.mjs'].map(name => [`/${name}`, [name, 'text/javascript']]),
 ]);
 let busy = false;
 let successCount = 0;

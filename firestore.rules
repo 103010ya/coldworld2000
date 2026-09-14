@@ -2,7 +2,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     // users/{uid}/words/{id}: слово, исходный ввод (1–120), разбор или null,
-    // createdAt и updatedAt — серверные даты. Владелец определяется путём.
+    // categoryId — необязательная ссылка на личную категорию; даты серверные.
     function owner(uid) { return request.auth != null && request.auth.uid == uid; }
     function text(value, maximum) { return value is string && value.size() > 0 && value.size() <= maximum; }
     function example(value, kind) {
@@ -26,8 +26,9 @@ service cloud.firestore {
         && example(value.examples[2], 'future') && example(value.examples[3], 'grammar'));
     }
     function validWord(value) {
-      return value.keys().hasOnly(['word', 'originalInput', 'details', 'createdAt', 'updatedAt'])
+      return value.keys().hasOnly(['word', 'originalInput', 'details', 'categoryId', 'createdAt', 'updatedAt'])
         && text(value.word, 120) && text(value.originalInput, 120) && details(value.details)
+        && (!('categoryId' in value) || value.categoryId == null || text(value.categoryId, 90))
         && value.createdAt is timestamp && value.updatedAt == request.time;
     }
     match /users/{uid}/words/{id} {
@@ -37,6 +38,18 @@ service cloud.firestore {
       allow update: if owner(uid) && validWord(request.resource.data)
         && request.resource.data.createdAt == resource.data.createdAt
         && request.resource.data.originalInput == resource.data.originalInput;
+    }
+    function validCategory(value) {
+      return value.keys().hasOnly(['name', 'createdAt', 'updatedAt'])
+        && text(value.name, 40) && value.createdAt is timestamp
+        && value.updatedAt == request.time;
+    }
+    match /users/{uid}/categories/{id} {
+      allow read, delete: if owner(uid);
+      allow create: if owner(uid) && validCategory(request.resource.data)
+        && request.resource.data.createdAt == request.time;
+      allow update: if owner(uid) && validCategory(request.resource.data)
+        && request.resource.data.createdAt == resource.data.createdAt;
     }
   }
 }

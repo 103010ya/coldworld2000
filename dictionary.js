@@ -1,4 +1,5 @@
-import { observeCloud, saveNewWord, requestCloudTranslation, removeCloudWord, confirmCloudWord } from './cloud-store.js';
+import { matchesSearch } from './search.js';
+import { observeCloud, saveNewWord, requestCloudTranslation, removeCloudWord, setCloudWordCategory, createCloudCategory, deleteCloudCategory, confirmCloudWord } from './cloud-store.js';
 import { validateAnalysis } from './translation-schema.mjs';
 
 let account = { uid: null, ready: false, words: [], error: '' };
@@ -7,6 +8,14 @@ const pendingAdds = new Map();
 const importButton = document.querySelector('#import-local');
 const syncStatus = document.querySelector('#sync-status');
 const storageKey = 'coldworld2000:local-words';
+const categoriesKey = 'coldworld2000:local-categories';
+const categoryStrip = document.querySelector('#category-strip');
+const categoryManager = document.querySelector('#category-manager');
+const categoryForm = document.querySelector('#category-form');
+const categoryName = document.querySelector('#category-name');
+const categoryRows = document.querySelector('#category-rows');
+const categorySelect = document.querySelector('#word-category');
+let selectedCategory = 'all';
 const input = document.querySelector('#new-word');
 const list = document.querySelector('#word-list');
 const count = document.querySelector('#word-count');
@@ -29,6 +38,7 @@ function openWord(word, trigger) {
   document.querySelector('#word-title').textContent = word.word;
   renderDetails(word.details);
   updateTranslationState();
+  renderCategorySelect();
   document.querySelector('.word-content').scrollTop = 0;
   pageMessage.hidden = true;
   page.hidden = false;
@@ -70,12 +80,24 @@ document.querySelector('#delete-word').addEventListener('click', async () => {
   } finally { updateTranslationState(); }
 });
 
+function layoutList() {
+  const anchors = [document.querySelector('.toolbar'), syncStatus, importButton, message, categoryStrip, categoryManager];
+  const bottom = Math.max(0, ...anchors.filter(element => element && !element.hidden).map(element => element.getBoundingClientRect?.().bottom || 0));
+  list.style.top = `${Math.max(110, Math.ceil(bottom + 8))}px`;
+}
+window.addEventListener('resize', layoutList);
+if (window.ResizeObserver) {
+  const observer = new window.ResizeObserver(layoutList);
+  for (const element of [categoryStrip, categoryManager, document.querySelector('.toolbar')]) observer.observe(element);
+}
+
 const normalizeWord = (word) => word.normalize('NFC').trim().replace(/\s+/gu, ' ');
 const wordKey = (word) => normalizeWord(word).toLowerCase();
 
 function showMessage(text = '') {
   message.textContent = text;
   message.hidden = !text;
+  layoutList();
 }
 
 function readLocalWords() {
@@ -100,7 +122,12 @@ function readWords() {
 
 function renderWords(words, addedWord) {
   const fragment = document.createDocumentFragment();
-  for (const word of words) {
+  const categories = readCategories();
+  for (const word of words.filter(word => {
+    const category = categories.some(item => item.id === word.categoryId) ? word.categoryId : null;
+    return matchesSearch(word, input.value) && (selectedCategory === 'all' ||
+      (selectedCategory === 'uncategorized' ? !category : selectedCategory === category));
+  })) {
     const card = document.createElement('li');
     card.className = 'word-card';
     if (word.id === addedWord?.id) card.classList.add('is-new');
@@ -151,7 +178,8 @@ async function addWord() {
   if (!account.ready) { showMessage('Дождитесь загрузки словаря.'); return; }
   const version = accountVersion;
   const uid = account.uid;
-  const entry = { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, word, originalInput: word, details: null };
+  const categoryId = selectedCategory !== 'all' && selectedCategory !== 'uncategorized' ? selectedCategory : null;
+  const entry = { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, word, originalInput: word, details: null, categoryId };
   try {
     const words = readWords();
     if (words.some(saved => wordKey(saved.word) === wordKey(word) || wordKey(saved.originalInput || saved.word) === wordKey(word))) {
@@ -202,7 +230,7 @@ input.addEventListener('keydown', (event) => {
     addWord();
   }
 });
-input.addEventListener('input', () => showMessage());
+input.addEventListener('input', () => { showMessage(); renderWords(readWords()); list.scrollTop = 0; });
 window.addEventListener('storage', (event) => {
   if (event.key === storageKey || event.key === null) loadDictionary();
 });
@@ -320,6 +348,7 @@ observeCloud(next => {
     if (!page.hidden) closeWord();
   }
   account = next;
+  renderCategories();
   for (const [id, item] of pendingAdds) {
     if (item.uid === next.uid && !item.saving && next.words.some(word => word.id === id)) pendingAdds.delete(id);
   }
@@ -327,6 +356,7 @@ observeCloud(next => {
   updateTranslationState();
   syncStatus.textContent = next.error || (!next.ready ? 'Загружаем словарь…' : next.uid ? '' : 'Войдите через Google, чтобы сохранять слова в аккаунте.');
   syncStatus.hidden = !syncStatus.textContent;
+  layoutList();
   try { importButton.hidden = !next.uid || !next.ready || !readLocalWords().length; }
   catch { importButton.hidden = true; }
 });
@@ -354,3 +384,150 @@ importButton.addEventListener('click', async () => {
   } catch { showMessage('Не удалось сохранить все локальные слова. Они остались на устройстве — попробуйте ещё раз.'); }
   finally { importButton.disabled = false; }
 });
+
+function readCategories() {
+  if (account.uid) return account.categories || [];
+  const saved = JSON.parse(localStorage.getItem(categoriesKey) || '[]');
+  if (!Array.isArray(saved)) throw new Error('Некорректные категории');
+  return saved;
+}
+
+function renderCategorySelect() {
+  const categories = readCategories();
+  const options = [{ id: '', name: 'Без категории' }, ...categories];
+  categorySelect.replaceChildren(...options.map(category => {
+    const option = document.createElement('option');
+    option.value = category.id;
+    option.textContent = category.name;
+    return option;
+  }));
+  categorySelect.value = selectedWord?.categoryId || '';
+}
+
+function renderCategories() {
+  const categories = readCategories();
+  if (!categories.some(item => item.id === selectedCategory) && !['all','uncategorized'].includes(selectedCategory)) selectedCategory = 'all';
+  const buttons = [{id:'all',name:'Все'}, {id:'uncategorized',name:'Без категории'}, ...categories];
+  categoryStrip.replaceChildren(...buttons.map(category => {
+    const chip = document.createElement('button');
+    chip.className = 'category-chip';
+    chip.type = 'button';
+    chip.textContent = category.name;
+    chip.setAttribute('aria-pressed', String(selectedCategory === category.id));
+    chip.addEventListener('click', () => {
+      selectedCategory = category.id;
+      renderCategories();
+      renderWords(readWords());
+      list.scrollTop = 0;
+    });
+    return chip;
+  }));
+  const manage = document.createElement('button');
+  manage.className = 'category-chip';
+  manage.type = 'button';
+  manage.textContent = '+';
+  manage.setAttribute('aria-label', 'Управлять категориями');
+  manage.addEventListener('click', () => {
+    categoryManager.hidden = !categoryManager.hidden;
+    layoutList();
+    if (!categoryManager.hidden) categoryName.focus();
+  });
+  categoryStrip.append(manage);
+  categoryRows.replaceChildren(...categories.map(category => {
+    const row = document.createElement('div');
+    row.className = 'category-row';
+    const name = document.createElement('span');
+    name.textContent = category.name;
+    const remove = document.createElement('button');
+    remove.className = 'category-remove';
+    remove.type = 'button';
+    remove.textContent = 'Удалить';
+    remove.setAttribute('aria-label', `Удалить категорию ${category.name}`);
+    remove.addEventListener('click', () => deleteCategory(category, remove));
+    row.append(name, remove);
+    return row;
+  }));
+  if (selectedWord) renderCategorySelect();
+  layoutList();
+}
+
+categoryForm.addEventListener('submit', async event => {
+  event.preventDefault();
+  const name = normalizeWord(categoryName.value);
+  if (!name) return;
+  if (!account.ready) { showMessage('Дождитесь загрузки категорий.'); return; }
+  if (readCategories().some(category => category.name.toLocaleLowerCase() === name.toLocaleLowerCase())) {
+    showMessage('Такая категория уже есть.');
+    return;
+  }
+  const category = { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, name };
+  const uid = account.uid;
+  categoryForm.querySelector('button').disabled = true;
+  try {
+    if (uid) {
+      await createCloudCategory(uid, category);
+      if (!account.categories.some(item => item.id === category.id)) account.categories = [...account.categories, category];
+    }
+    else localStorage.setItem(categoriesKey, JSON.stringify([...readCategories(), category]));
+    if (uid !== account.uid) return;
+    categoryName.value = '';
+    selectedCategory = category.id;
+    renderCategories();
+    renderWords(readWords());
+    list.scrollTop = 0;
+    showMessage();
+  } catch { showMessage('Не удалось создать категорию. Попробуйте ещё раз.'); }
+  finally { categoryForm.querySelector('button').disabled = false; }
+});
+
+async function deleteCategory(category, button) {
+  button.disabled = true;
+  const uid = account.uid;
+  try {
+    if (uid) {
+      await deleteCloudCategory(uid, category.id, account.words);
+      account.categories = account.categories.filter(item => item.id !== category.id);
+      account.words = account.words.map(word => word.categoryId === category.id ? { ...word, categoryId: null } : word);
+    }
+    else {
+      const words = readLocalWords().map(word => word.categoryId === category.id ? { ...word, categoryId: null } : word);
+      localStorage.setItem(storageKey, JSON.stringify(words));
+      localStorage.setItem(categoriesKey, JSON.stringify(readCategories().filter(item => item.id !== category.id)));
+    }
+    if (uid !== account.uid) return;
+    if (selectedCategory === category.id) selectedCategory = 'all';
+    renderCategories();
+    renderWords(readWords());
+    showMessage();
+  } catch { showMessage('Не удалось удалить категорию. Слова сохранены. Попробуйте ещё раз.'); }
+  finally { button.disabled = false; }
+}
+
+categorySelect.addEventListener('change', async () => {
+  if (!selectedWord) return;
+  const target = selectedWord;
+  const categoryId = categorySelect.value || null;
+  const uid = account.uid;
+  categorySelect.disabled = true;
+  try {
+    if (uid) {
+      await setCloudWordCategory(uid, target.id, categoryId);
+      selectedWord = { ...target, categoryId };
+      account.words = account.words.map(word => word.id === target.id ? selectedWord : word);
+      renderWords(readWords());
+    }
+    else {
+      const words = readLocalWords().map(word => word.id === target.id ? { ...word, categoryId } : word);
+      localStorage.setItem(storageKey, JSON.stringify(words));
+      selectedWord = words.find(word => word.id === target.id);
+      renderWords(words);
+    }
+    showMessage();
+  } catch {
+    categorySelect.value = target.categoryId || '';
+    pageMessage.textContent = 'Не удалось изменить категорию. Попробуйте ещё раз.';
+    pageMessage.hidden = false;
+  } finally { categorySelect.disabled = false; }
+});
+
+renderCategories();

@@ -106,9 +106,14 @@
       }
       .word-list {
         list-style: none;
-        padding: 36px 0 max(44px, env(safe-area-inset-bottom));
+        position: fixed;
+        top: 130px;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        padding: 36px max(20px, calc((100vw - 680px) / 2)) max(44px, env(safe-area-inset-bottom));
         margin: 0;
-        flex: 1;
         min-height: 0;
         overflow-y: auto;
         overscroll-behavior-y: contain;
@@ -121,6 +126,17 @@
         mask-image: linear-gradient(to bottom, transparent, #000 36px, #000 calc(100% - 44px), transparent);
       }
       .word-list::-webkit-scrollbar { display: none; }
+      .category-strip { display: flex; align-items: center; gap: 8px; overflow-x: auto; flex-shrink: 0; min-height: 38px; margin: 0 0 12px; scrollbar-width: none; }
+      .category-strip::-webkit-scrollbar { display: none; }
+      .category-chip { flex-shrink: 0; border: 1px solid #eceef0; border-radius: 999px; background: #fff; color: #737982; padding: 8px 13px; font-size: 13px; white-space: nowrap; }
+      .category-chip[aria-pressed="true"] { border-color: #dce0e4; color: #252a30; box-shadow: 0 2px 8px #333d4b0c; }
+      .category-manager { flex-shrink: 0; padding: 12px; margin-bottom: 12px; border: 1px solid #eceef0; border-radius: 18px; box-shadow: 0 2px 8px #333d4b08; }
+      .category-form { display: flex; gap: 8px; }
+      .category-form input { min-width: 0; flex: 1; padding: 10px 12px; border: 1px solid #eceef0; border-radius: 12px; font: inherit; font-size: 14px; }
+      .category-form button, .category-remove { border: 0; border-radius: 12px; background: #f1f2f4; padding: 10px 12px; font-size: 13px; }
+      .category-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 2px 0; font-size: 14px; }
+      .category-row span { overflow-wrap: anywhere; }
+      .category-select { width: 100%; padding: 12px; border: 1px solid #eceef0; border-radius: 12px; background: #fff; font: inherit; font-size: 14px; }
       .word-card {
         padding: 18px 20px;
         border: 1px solid #eef0f2;
@@ -246,6 +262,14 @@
       <p class="status" id="sync-status" role="status" hidden></p>
       <button class="signout" id="import-local" type="button" hidden>Сохранить слова с устройства в аккаунт</button>
       <p class="status" id="word-status" role="status" hidden></p>
+      <nav class="category-strip" id="category-strip" aria-label="Категории слов"></nav>
+      <div class="category-manager" id="category-manager" hidden>
+        <form class="category-form" id="category-form">
+          <input id="category-name" type="text" maxlength="40" placeholder="Название категории" aria-label="Название категории">
+          <button type="submit">Создать</button>
+        </form>
+        <div id="category-rows"></div>
+      </div>
       <ul class="word-list" id="word-list" aria-label="Словарь" tabindex="-1"></ul>
     </main>
     <section class="word-page" id="word-page" aria-labelledby="word-title" hidden>
@@ -262,7 +286,7 @@
           </button>
         </nav>
         <p class="status" id="word-page-status" role="status" hidden></p>
-        <div class="word-content"><h1 class="word-title" id="word-title"></h1><div id="word-details"></div></div>
+        <div class="word-content"><h1 class="word-title" id="word-title"></h1><div class="detail-section"><label for="word-category">Категория</label><select class="category-select" id="word-category" aria-label="Категория слова"></select></div><div id="word-details"></div></div>
       </div>
     </section>
     <script type="module" src="./app.js"></script>

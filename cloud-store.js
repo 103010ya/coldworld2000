@@ -2,7 +2,8 @@ import { firebaseConfig } from './firebase-config.js';
 
 let sdk, db, auth;
 let unsubscribe = () => {};
-let state = { uid: null, ready: false, words: [], error: '' };
+let unsubscribeCategories = () => {};
+let state = { uid: null, ready: false, words: [], categories: [], error: '' };
 let listener = () => {};
 let generation = 0;
 const publish = (next) => { state = { ...state, ...next }; listener(state); };
@@ -23,7 +24,8 @@ export async function observeCloud(callback) {
     authSdk.onAuthStateChanged(auth, user => {
       const version = ++generation;
       unsubscribe();
-      publish({ uid: user?.uid || null, ready: !user, words: [], error: '' });
+      unsubscribeCategories();
+      publish({ uid: user?.uid || null, ready: !user, words: [], categories: [], error: '' });
       if (!user) return;
       // Живой слушатель нужен для немедленного обновления списка на втором устройстве.
       unsubscribe = sdk.onSnapshot(sdk.collection(db, 'users', user.uid, 'words'), snapshot => {
@@ -33,6 +35,14 @@ export async function observeCloud(callback) {
         publish({ words, ready: true, error: '' });
       }, () => {
         if (version === generation) publish({ ready: false, error: 'Не удалось подключить облачный словарь. Проверьте интернет и обновите страницу.' });
+      });
+      unsubscribeCategories = sdk.onSnapshot(sdk.collection(db, 'users', user.uid, 'categories'), snapshot => {
+        if (version !== generation) return;
+        const categories = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+        categories.sort((a, b) => a.name.localeCompare(b.name));
+        publish({ categories });
+      }, () => {
+        if (version === generation) publish({ error: 'Не удалось загрузить категории. Обновите страницу.' });
       });
     });
   } catch {
@@ -51,6 +61,7 @@ export async function saveNewWord(uid, word) {
     transaction.set(ref, {
       word: word.word, originalInput: word.originalInput || word.word,
       details: word.details || null, createdAt: sdk.serverTimestamp(), updatedAt: sdk.serverTimestamp(),
+      categoryId: word.categoryId || null,
     });
   });
 }
@@ -60,6 +71,28 @@ export async function saveTranslation(uid, id, details) {
 }
 export async function removeCloudWord(uid, id) {
   await sdk.deleteDoc(reference(uid, id));
+}
+export async function setCloudWordCategory(uid, id, categoryId) {
+  await sdk.updateDoc(reference(uid, id), { categoryId, updatedAt: sdk.serverTimestamp() });
+}
+export async function createCloudCategory(uid, category) {
+  reference(uid, category.id);
+  await sdk.setDoc(sdk.doc(db, 'users', uid, 'categories', category.id), {
+    name: category.name, createdAt: sdk.serverTimestamp(), updatedAt: sdk.serverTimestamp(),
+  });
+}
+export async function deleteCloudCategory(uid, categoryId, words) {
+  reference(uid, categoryId);
+  const affected = words.filter(word => word.categoryId === categoryId);
+  // Каждая пачка укладывается в ограничение Firestore на количество записей.
+  for (let offset = 0; offset < affected.length; offset += 400) {
+    const batch = sdk.writeBatch(db);
+    for (const word of affected.slice(offset, offset + 400)) {
+      batch.update(sdk.doc(db, 'users', uid, 'words', word.id), { categoryId: null, updatedAt: sdk.serverTimestamp() });
+    }
+    await batch.commit();
+  }
+  await sdk.deleteDoc(sdk.doc(db, 'users', uid, 'categories', categoryId));
 }
 export async function confirmCloudWord(uid, id) {
   const snapshot = await sdk.getDocFromServer(reference(uid, id));

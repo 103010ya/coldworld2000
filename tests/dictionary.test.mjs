@@ -3,14 +3,17 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFile } from 'node:fs/promises';
 import { validateAnalysis } from '../translation-schema.mjs';
+import { matchesSearch } from '../search.js';
 const source = (await readFile(new URL('../dictionary.js', import.meta.url), 'utf8')).replace(/^import .*;\n/gm, '');
 const analysis = { koreanWord: '먹다', translation: 'есть', meaning: 'Принимать пищу.', usage: 'В разговоре о еде.', formality: { level: 2, style: 'оба', older: 'Для действий старшего — 드시다.', younger: 'С учётом близости.', note: 'Вежливость зависит от окончания.' }, examples: ['present', 'past', 'future', 'grammar'].map(kind => ({ kind, grammar: 'Пример', korean: '밥을 먹어요.', translation: 'Я ем рис.' })) };
 function setup(saved = ['먹었어요']) {
   const nodes = new Map();
   class Element {
-    constructor() { this.children = []; this.events = {}; this.value = ''; this.isConnected = true; this.classList = { add() {}, toggle() {} }; }
+    constructor() { this.children = []; this.events = {}; this.value = ''; this.style = {}; this.isConnected = true; this.classList = { add() {}, toggle() {} }; }
     append(child) { this.children.push(child); }
     replaceChildren(...children) { this.children = children; }
+    getBoundingClientRect() { return { bottom: 100 }; }
+    querySelector() { return new Element(); }
     setAttribute() {}
     addEventListener(type, callback) { this.events[type] = callback; }
     dispatchEvent(event) { this.events[event.type]?.(event); }
@@ -23,9 +26,10 @@ function setup(saved = ['먹었어요']) {
     document: { querySelector: node, createElement: () => new Element(), createDocumentFragment: () => new Element(), addEventListener() {} },
     window: { addEventListener() {} },
     localStorage: { getItem: () => storage, setItem: (_, value) => { storage = value; } },
-    observeCloud: callback => callback({ uid: null, ready: true, words: [], error: '' }),
+    observeCloud: callback => callback({ uid: null, ready: true, words: [], categories: [], error: '' }),
+    setCloudWordCategory: async () => {}, createCloudCategory: async () => {}, deleteCloudCategory: async () => {},
     location: { hostname: 'localhost' },
-    validateAnalysis, AbortSignal, Event, fetch: async () => ({ ok: true, json: async () => structuredClone(analysis) }),
+    validateAnalysis, matchesSearch, AbortSignal, Event, fetch: async () => ({ ok: true, json: async () => structuredClone(analysis) }),
   });
   vm.runInContext(source, context);
   return { context, node, run: code => vm.runInContext(code, context), words: () => JSON.parse(storage) };
