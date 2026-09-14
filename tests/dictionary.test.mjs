@@ -121,3 +121,17 @@ test('публичный гостевой перевод предлагает Go
   assert.equal(calls,0);
   assert.match(app.node('#word-page-status').textContent,/Войдите через Google/);
 });
+test('слово и пустое поле появляются до ответа Firebase', async () => {
+  const app = setup();
+  let finish;
+  app.context.saveNewWord = () => new Promise(resolve => { finish = resolve; });
+  app.run("account = {uid:'alice',ready:true,words:[]}");
+  app.node('#new-word').value = 'apple';
+  const saving = app.run('addWord()');
+  assert.equal(app.node('#new-word').value, '');
+  assert.equal(app.run('readWords()[0].word'), 'apple');
+  app.node('#new-word').value = 'next';
+  finish();
+  await saving;
+  assert.equal(app.node('#new-word').value,'next');
+});

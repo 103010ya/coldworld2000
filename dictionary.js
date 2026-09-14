@@ -3,7 +3,7 @@ import { validateAnalysis } from './translation-schema.mjs';
 
 let account = { uid: null, ready: false, words: [], error: '' };
 let accountVersion = 0;
-let adding = false;
+const pendingAdds = new Map();
 const importButton = document.querySelector('#import-local');
 const syncStatus = document.querySelector('#sync-status');
 const storageKey = 'coldworld2000:local-words';
@@ -92,7 +92,11 @@ function readLocalWords() {
   });
 }
 
-function readWords() { return account.uid ? account.words : readLocalWords(); }
+function readWords() {
+  if (!account.uid) return readLocalWords();
+  const extra = [...pendingAdds.values()].filter(item => item.uid === account.uid && !account.words.some(word => word.id === item.entry.id)).map(item => item.entry);
+  return [...extra, ...account.words];
+}
 
 function renderWords(words, addedWord) {
   const fragment = document.createDocumentFragment();
@@ -143,35 +147,49 @@ function loadDictionary() {
 
 async function addWord() {
   const word = normalizeWord(input.value);
-  if (!word || adding) return;
+  if (!word) return;
   if (!account.ready) { showMessage('Дождитесь загрузки словаря.'); return; }
   const version = accountVersion;
-  adding = true;
-  document.querySelector('.add-button').disabled = true;
+  const uid = account.uid;
+  const entry = { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, word, originalInput: word, details: null };
   try {
-    // Перечитываем перед записью, чтобы учесть добавления в другой вкладке.
     const words = readWords();
     if (words.some(saved => wordKey(saved.word) === wordKey(word) || wordKey(saved.originalInput || saved.word) === wordKey(word))) {
       showMessage('Это слово уже есть в словаре.');
       return;
     }
-    const entry = { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, word, originalInput: word, details: null };
-    if (account.uid) {
-      await saveNewWord(account.uid, entry);
-      if (version !== accountVersion) return;
-    } else {
-    const updated = [entry, ...words];
-    // Очищаем поле только после успешного сохранения.
-    localStorage.setItem(storageKey, JSON.stringify(updated));
-    renderWords(updated, entry);
-    }
-    showMessage();
-    if (normalizeWord(input.value) === word) input.value = '';
+    if (uid) pendingAdds.set(entry.id, { uid, entry, saving: true });
+    else localStorage.setItem(storageKey, JSON.stringify([entry, ...words]));
+    // Интерфейс отвечает сразу; сеть больше не задерживает ввод следующего слова.
+    renderWords(readWords(), entry);
+    input.value = '';
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.focus();
+    if (uid) {
+      await saveNewWord(uid, entry);
+      const item = pendingAdds.get(entry.id);
+      if (item) item.saving = false;
+      if (account.uid === uid && account.words.some(word => word.id === entry.id)) pendingAdds.delete(entry.id);
+      updateTranslationState();
+    }
   } catch {
-    if (version === accountVersion) showMessage('Не удалось сохранить слово. Текст остался в поле — попробуйте ещё раз.');
-  } finally { adding = false; document.querySelector('.add-button').disabled = false; }
+    pendingAdds.delete(entry.id);
+    if (version !== accountVersion) return;
+    loadDictionary();
+    if (!input.value.trim()) {
+      input.value = word;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      showMessage('Не удалось сохранить слово. Текст возвращён в поле — попробуйте ещё раз.');
+    } else {
+      // Новый ввод не затираем: неудачное слово остаётся в локальном словаре.
+      try {
+        const local = readLocalWords();
+        localStorage.setItem(storageKey, JSON.stringify([entry, ...local]));
+        importButton.hidden = false;
+        showMessage(`«${word}» сохранено на устройстве. Нажмите «Сохранить слова с устройства в аккаунт», чтобы повторить.`);
+      } catch { showMessage(`Не удалось сохранить «${word}». Скопируйте это слово и попробуйте ещё раз.`); }
+    }
+  }
 }
 
 document.querySelector('.add-button').addEventListener('click', addWord);
@@ -189,7 +207,7 @@ window.addEventListener('storage', (event) => {
 loadDictionary();
 
 function updateTranslationState() {
-  const busy = selectedWord && pending.has(selectedWord.id);
+  const busy = selectedWord && (pending.has(selectedWord.id) || pendingAdds.get(selectedWord.id)?.saving);
   translateButton.disabled = Boolean(busy);
   deleteButton.disabled = Boolean(busy);
   translateButton.classList.toggle('is-loading', Boolean(busy));
@@ -300,7 +318,11 @@ observeCloud(next => {
     if (!page.hidden) closeWord();
   }
   account = next;
+  for (const [id, item] of pendingAdds) {
+    if (item.uid === next.uid && !item.saving && next.words.some(word => word.id === id)) pendingAdds.delete(id);
+  }
   loadDictionary();
+  updateTranslationState();
   syncStatus.textContent = next.error || (!next.ready ? 'Загружаем словарь…' : next.uid ? '' : 'Войдите через Google, чтобы сохранять слова в аккаунте.');
   syncStatus.hidden = !syncStatus.textContent;
   try { importButton.hidden = !next.uid || !next.ready || !readLocalWords().length; }
