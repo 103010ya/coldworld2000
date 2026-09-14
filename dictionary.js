@@ -138,23 +138,11 @@ function renderWords(words, addedWord) {
     const label = document.createElement('span');
     label.textContent = word.word;
     link.append(label);
-    const categoryName = categories.find(category => category.id === word.categoryId)?.name;
-    if (word.details || categoryName) {
-      const meta = document.createElement('span');
-      meta.className = 'word-meta';
-      if (word.details) {
-        const translation = document.createElement('span');
-        translation.className = 'word-translation';
-        translation.textContent = word.details.translation;
-        meta.append(translation);
-      }
-      if (categoryName) {
-        const categoryLabel = document.createElement('span');
-        categoryLabel.className = 'word-category-label';
-        categoryLabel.textContent = categoryName;
-        meta.append(categoryLabel);
-      }
-      link.append(meta);
+    if (word.details) {
+      const translation = document.createElement('span');
+      translation.className = 'word-translation';
+      translation.textContent = word.details.translation;
+      link.append(translation);
     }
     link.addEventListener('click', () => openWord(word, link));
     card.append(link);

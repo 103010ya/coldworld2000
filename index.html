@@ -2,7 +2,7 @@
 <html lang="ru">
   <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#ffffff">
     <title>coldworld2000</title>
     <style>
@@ -131,7 +131,7 @@
       .category-chip[aria-pressed="true"] { border-color: #dce0e4; color: #252a30; box-shadow: 0 2px 8px #333d4b0c; }
       .category-manager { flex-shrink: 0; padding: 12px; margin-bottom: 12px; border: 1px solid #eceef0; border-radius: 18px; box-shadow: 0 2px 8px #333d4b08; }
       .category-form { display: flex; gap: 8px; }
-      .category-form input { min-width: 0; flex: 1; height: 42px; padding: 0 14px; border: 1px solid #eceef0; border-radius: 14px; background: #fff; font: inherit; font-size: 14px; transition: border-color 180ms ease, box-shadow 180ms ease; }
+      .category-form input { min-width: 0; flex: 1; height: 42px; padding: 0 14px; border: 1px solid #eceef0; border-radius: 14px; background: #fff; font: inherit; font-size: 16px; transition: border-color 180ms ease, box-shadow 180ms ease; }
       .category-form input:focus { outline: none; border-color: #dce0e4; }
       .category-form button, .category-remove { display: grid; place-items: center; flex: 0 0 42px; width: 42px; height: 42px; padding: 0; border: 1px solid #eceef0; border-radius: 14px; background: #fff; color: #62676e; box-shadow: 0 2px 8px #333d4b08; }
       .category-form button:active, .category-remove:active { transform: scale(.96); }
@@ -197,11 +197,11 @@
       .status { flex-shrink: 0; margin: 0 4px 12px; color: #62676e; font-size: 13px; line-height: 1.5; }
       .word-link { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
       .word-link > span { min-width: 0; }
-      .word-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; min-width: 0; text-align: right; }
       .word-translation { color: #85898f; font-size: 14px; }
-      .word-category-label { color: #999fa6; font-size: 11px; line-height: 1.3; overflow-wrap: anywhere; }
       #word-details { margin-top: 32px; }
+      #word-details:empty { display: none; }
       .detail-section { border-top: 1px solid #eef0f2; padding: 22px 0; }
+      .word-category-section { padding: 18px 0 0; }
       .detail-section h2 { margin: 0 0 12px; color: #85898f; font-size: 12px; font-weight: 400; }
       .detail-section p { margin: 8px 0; font-size: 15px; line-height: 1.7; overflow-wrap: anywhere; }
       .detail-section .detail-note { color: #85898f; font-size: 13px; }
@@ -290,7 +290,7 @@
           </button>
         </nav>
         <p class="status" id="word-page-status" role="status" hidden></p>
-        <div class="word-content"><h1 class="word-title" id="word-title"></h1><div class="detail-section"><h2>Категория</h2><div class="word-categories" id="word-category" role="group" aria-label="Категория слова"></div></div><div id="word-details"></div></div>
+        <div class="word-content"><h1 class="word-title" id="word-title"></h1><div class="detail-section word-category-section"><h2>Категория</h2><div class="word-categories" id="word-category" role="group" aria-label="Категория слова"></div></div><div id="word-details"></div></div>
       </div>
     </section>
     <script type="module" src="./app.js"></script>

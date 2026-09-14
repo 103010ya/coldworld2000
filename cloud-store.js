@@ -39,7 +39,7 @@ export async function observeCloud(callback) {
       unsubscribeCategories = sdk.onSnapshot(sdk.collection(db, 'users', user.uid, 'categories'), snapshot => {
         if (version !== generation) return;
         const categories = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-        categories.sort((a, b) => a.name.localeCompare(b.name));
+        categories.sort((a, b) => (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0) || a.id.localeCompare(b.id));
         publish({ categories });
       }, () => {
         if (version === generation) publish({ error: 'Не удалось загрузить категории. Обновите страницу.' });
