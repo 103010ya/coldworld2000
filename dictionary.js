@@ -317,7 +317,7 @@ async function translateWord(word, inPage) {
   if (inPage) {
     pageMessage.textContent = 'Переводим и готовим примеры…';
     pageMessage.hidden = false;
-  } else showMessage('Переводим и готовим примеры…');
+  }
   try {
     // Сначала подтверждаем сохранение слова, затем запрашиваем перевод.
     if (uid) await confirmCloudWord(uid, target.id);

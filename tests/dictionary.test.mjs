@@ -148,9 +148,14 @@ test('слово и пустое поле появляются до ответа
 
 test('кнопка на карточке переводит слово без открытия страницы', async () => {
   const app = setup([{ id: 'one', word: '먹었어요', originalInput: '먹었어요', details: null }]);
+  let finish;
+  app.context.fetch = () => new Promise(resolve => { finish = () => resolve({ ok: true, json: async () => structuredClone(analysis) }); });
   const card = app.node('#word-list').children[0].children[0];
   assert.equal(card.children.length, 2);
-  await card.children[1].events.click();
+  const translating = card.children[1].events.click();
+  assert.equal(app.node('#word-status').textContent || '', '');
+  finish();
+  await translating;
   assert.equal(app.words()[0].word, '먹다');
   assert.equal(app.node('#word-page').hidden, undefined);
   assert.equal(app.node('#word-list').children[0].children[0].children.length, 1);
