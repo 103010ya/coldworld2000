@@ -6,6 +6,7 @@ let account = { uid: null, ready: false, words: [], error: '' };
 let accountVersion = 0;
 const pendingAdds = new Map();
 const pendingCategories = new Map();
+const pendingCategoryMoves = new Set();
 const importButton = document.querySelector('#import-local');
 const syncStatus = document.querySelector('#sync-status');
 const storageKey = 'coldworld2000:local-words';
@@ -45,10 +46,12 @@ function openWord(word, trigger) {
   renderDetails(word.details);
   updateTranslationState();
   renderCategorySelect();
-  document.querySelector('.word-content').scrollTop = 0;
   pageMessage.hidden = true;
   page.hidden = false;
   main.inert = true;
+  const content = document.querySelector('.word-content');
+  content.scrollTop = 0;
+  window.requestAnimationFrame?.(() => { content.scrollTop = 0; });
   closeButton.focus({ preventScroll: true });
 }
 
@@ -131,10 +134,12 @@ function readWords() {
 function renderWords(words, addedWord) {
   const fragment = document.createDocumentFragment();
   const categories = readCategories();
-  for (const word of words.filter(word => {
+  const matching = words.filter(word => matchesSearch(word, input.value));
+  const categoryOf = word => {
     const category = categories.some(item => item.id === word.categoryId) ? word.categoryId : null;
-    return matchesSearch(word, input.value) && (selectedCategory === 'all' || selectedCategory === category);
-  })) {
+    return category;
+  };
+  const appendCard = (word, otherWord = false) => {
     const card = document.createElement('li');
     card.className = 'word-card';
     if (word.id === addedWord?.id) card.classList.add('is-new');
@@ -153,7 +158,16 @@ function renderWords(words, addedWord) {
     }
     link.addEventListener('click', () => openWord(word, link));
     card.append(link);
-    if (!word.details) {
+    if (otherWord) {
+      const quickAdd = document.createElement('button');
+      quickAdd.type = 'button';
+      quickAdd.className = 'quick-category';
+      quickAdd.innerHTML = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>';
+      quickAdd.disabled = pendingCategoryMoves.has(word.id) || Boolean(pendingAdds.get(word.id)?.saving);
+      quickAdd.setAttribute('aria-label', `Добавить «${word.word}» в выбранную категорию`);
+      quickAdd.addEventListener('click', () => addWordToCurrentCategory(word));
+      card.append(quickAdd);
+    } else if (!word.details) {
       const quickTranslate = document.createElement('button');
       quickTranslate.type = 'button';
       quickTranslate.className = 'quick-translate';
@@ -166,6 +180,20 @@ function renderWords(words, addedWord) {
       card.append(quickTranslate);
     }
     fragment.append(card);
+  };
+  if (selectedCategory === 'all') {
+    matching.forEach(word => appendCard(word));
+  } else {
+    const selectedWords = matching.filter(word => categoryOf(word) === selectedCategory);
+    const otherWords = matching.filter(word => categoryOf(word) !== selectedCategory);
+    selectedWords.forEach(word => appendCard(word));
+    if (otherWords.length) {
+      const divider = document.createElement('li');
+      divider.className = 'word-list-divider';
+      divider.textContent = 'Другие слова';
+      fragment.append(divider);
+      otherWords.forEach(word => appendCard(word, true));
+    }
   }
   list.replaceChildren(fragment);
   countValue.textContent = words.length;
@@ -460,6 +488,9 @@ function renderCategorySelect() {
 function renderCategories() {
   const categories = readCategories();
   if (selectedCategory !== 'all' && !categories.some(item => item.id === selectedCategory)) selectedCategory = 'all';
+  categoryOpen.textContent = selectedCategory === 'all'
+    ? 'Категории'
+    : categories.find(category => category.id === selectedCategory)?.name || 'Категории';
   categoryRows.replaceChildren(...[{ id: 'all', name: 'Все' }, ...categories].map(category => {
     const row = document.createElement('div');
     row.className = 'category-row';
@@ -604,6 +635,34 @@ async function deleteCategory(category, button) {
     showMessage();
   } catch { showCategoryMessage('Не удалось удалить категорию. Слова сохранены. Попробуйте ещё раз.'); }
   finally { button.disabled = false; }
+}
+
+async function addWordToCurrentCategory(word) {
+  if (selectedCategory === 'all' || pendingCategoryMoves.has(word.id) || pendingAdds.get(word.id)?.saving) return;
+  const categoryId = selectedCategory;
+  const uid = account.uid;
+  const version = accountVersion;
+  const previousCategory = word.categoryId || null;
+  pendingCategoryMoves.add(word.id);
+  try {
+    if (uid) {
+      account.words = account.words.map(item => item.id === word.id ? { ...item, categoryId } : item);
+      renderWords(readWords());
+      await setCloudWordCategory(uid, word.id, categoryId);
+    } else {
+      const words = readLocalWords().map(item => item.id === word.id ? { ...item, categoryId } : item);
+      localStorage.setItem(storageKey, JSON.stringify(words));
+      renderWords(words);
+    }
+  } catch {
+    if (version !== accountVersion) return;
+    if (uid) account.words = account.words.map(item => item.id === word.id ? { ...item, categoryId: previousCategory } : item);
+    renderWords(readWords());
+    showMessage('Не удалось добавить слово в категорию. Попробуйте ещё раз.');
+  } finally {
+    pendingCategoryMoves.delete(word.id);
+    if (version === accountVersion) renderWords(readWords());
+  }
 }
 
 let categorySaving = false;

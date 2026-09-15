@@ -129,6 +129,9 @@
         mask-image: linear-gradient(to bottom, transparent, #000 36px, #000 calc(100% - 44px), transparent);
       }
       .word-list::-webkit-scrollbar { display: none; }
+      .word-list-divider { display: flex; align-items: center; gap: 14px; margin: 18px 2px 8px; color: #92979e; font-size: 12px; }
+      .word-list-divider::before, .word-list-divider::after { content: ''; height: 1px; flex: 1; background: linear-gradient(to right, transparent, #e9ebed); }
+      .word-list-divider::after { background: linear-gradient(to left, transparent, #e9ebed); }
       .category-strip { display: flex; align-items: center; justify-content: center; flex-shrink: 0; min-height: 38px; margin: 0 0 12px; }
       .category-chip { flex-shrink: 0; border: 1px solid #f2f3f4; border-radius: 999px; background: #fff; color: #737982; padding: 8px 13px; font-size: 13px; white-space: nowrap; box-shadow: 0 5px 18px #343d4a0a; }
       .category-chip[aria-pressed="true"] { color: #252a30; box-shadow: 0 5px 22px #343d4a12; }
@@ -231,6 +234,9 @@
       .word-card { display: flex; align-items: center; padding: 0; }
       .word-link { flex: 1; min-width: 0; padding: 18px 20px; border: 0; border-radius: inherit; background: transparent; text-align: left; overflow-wrap: anywhere; line-height: inherit; }
       .quick-translate { display: grid; place-items: center; flex: 0 0 38px; width: 38px; height: 38px; margin-right: 12px; padding: 0; border: 1px solid var(--soft-border); border-radius: 50%; background: #fff; color: #737982; box-shadow: var(--soft-glow-small); }
+      .quick-category { display: grid; place-items: center; flex: 0 0 38px; width: 38px; height: 38px; margin-right: 12px; padding: 0; border: 1px solid var(--soft-border); border-radius: 50%; background: #fff; color: #737982; box-shadow: var(--soft-glow-small); transition: transform 180ms ease, box-shadow 180ms ease; }
+      .quick-category:active { transform: scale(.96); box-shadow: 0 3px 14px #343d4a0d; }
+      .quick-category:disabled { opacity: .5; cursor: wait; }
       .quick-translate:disabled { opacity: .5; cursor: wait; }
       .quick-translate.is-loading { animation: translation-pulse 1200ms ease-in-out infinite; }
       .word-page { position: fixed; inset: 0; background: #fff; z-index: 3; }

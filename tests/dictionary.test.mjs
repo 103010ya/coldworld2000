@@ -185,3 +185,26 @@ test('ошибка облачного сохранения возвращает 
   assert.equal(app.node('#category-create').hidden, false);
   assert.equal(app.node('#category-name').value, 'Работа');
 });
+
+test('выбранная категория показывает другие слова с быстрым добавлением', async () => {
+  const app = setup([
+    { id: 'new', word: '새롭다', originalInput: 'новый', details: analysis, categoryId: null },
+    { id: 'old', word: '공부하다', originalInput: 'учиться', details: analysis, categoryId: 'study' },
+  ]);
+  app.context.localStorage.setItem('coldworld2000:local-categories', JSON.stringify([{ id: 'study', name: 'Учёба' }]));
+  app.run("selectedCategory='study'; renderCategories(); renderWords(readWords())");
+  assert.equal(app.node('#category-open').textContent, 'Учёба');
+  const children = app.node('#word-list').children[0].children;
+  assert.equal(children[1].className, 'word-list-divider');
+  assert.equal(children[1].textContent, 'Другие слова');
+  await children[2].children[1].events.click();
+  assert.equal(app.words()[0].categoryId, 'study');
+  assert.equal(app.node('#word-list').children[0].children.some(item => item.className === 'word-list-divider'), false);
+});
+
+test('каждая карточка слова открывается с начала страницы', () => {
+  const app = setup();
+  app.node('.word-content').scrollTop = 420;
+  app.run('openWord(readWords()[0], null)');
+  assert.equal(app.node('.word-content').scrollTop, 0);
+});
