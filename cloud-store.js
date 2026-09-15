@@ -108,3 +108,11 @@ export async function requestCloudTranslation(uid, id) {
   const response = await call({ wordId: id });
   return response.data;
 }
+
+export async function requestCloudPronunciation(uid, id) {
+  reference(uid, id);
+  const functionsSdk = await import('https://www.gstatic.com/firebasejs/12.15.0/firebase-functions.js');
+  const call = functionsSdk.httpsCallable(functionsSdk.getFunctions(auth.app, 'asia-northeast3'), 'pronounceWord', { timeout: 30000 });
+  const response = await call({ wordId: id });
+  return response.data;
+}

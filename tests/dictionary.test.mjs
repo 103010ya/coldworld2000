@@ -9,7 +9,11 @@ const analysis = { koreanWord: '먹다', translation: 'есть', meaning: 'Пр
 function setup(saved = ['먹었어요']) {
   const nodes = new Map();
   class Element {
-    constructor() { this.children = []; this.events = {}; this.value = ''; this.style = {}; this.isConnected = true; this.classList = { add() {}, toggle() {} }; }
+    constructor() {
+      this.children = []; this.events = {}; this.value = ''; this.style = {}; this.isConnected = true;
+      const classes = new Set();
+      this.classList = { add: value => classes.add(value), remove: value => classes.delete(value), toggle: (value, force) => force ? classes.add(value) : classes.delete(value), contains: value => classes.has(value) };
+    }
     append(child) { this.children.push(child); }
     replaceChildren(...children) { this.children = children; }
     getBoundingClientRect() { return { bottom: 100 }; }
@@ -31,9 +35,10 @@ function setup(saved = ['먹었어요']) {
     window: { addEventListener() {} },
     localStorage: { getItem: key => storage.get(key) || null, setItem: (key, value) => { storage.set(key, value); } },
     observeCloud: callback => callback({ uid: null, ready: true, words: [], categories: [], error: '' }),
-    setCloudWordCategory: async () => {}, createCloudCategory: async () => {}, deleteCloudCategory: async () => {},
+    setCloudWordCategory: async () => {}, createCloudCategory: async () => {}, deleteCloudCategory: async () => {}, requestCloudPronunciation: async () => ({ audio: 'YQ==', contentType: 'audio/mpeg' }),
     location: { hostname: 'localhost' },
-    validateAnalysis, matchesSearch, AbortSignal, Event, fetch: async () => ({ ok: true, json: async () => structuredClone(analysis) }),
+    Audio: class { constructor() { this.paused = true; } addEventListener() {} async play() { this.paused = false; } pause() { this.paused = true; } },
+    validateAnalysis, matchesSearch, AbortSignal, Event, Blob, URL, atob, fetch: async () => ({ ok: true, json: async () => structuredClone(analysis) }),
   });
   vm.runInContext(source, context);
   return { context, node, run: code => vm.runInContext(code, context), words: () => JSON.parse(storage.get('coldworld2000:local-words')) };
@@ -120,6 +125,17 @@ test('облачный перевод вызывает Firebase для сохр�
   await app.node('#translate-word').events.click();
   assert.deepEqual(called,{uid:'alice',id:'1'});
   assert.equal(app.node('#word-page-status').hidden,true);
+});
+test('произношение доступно только у переведённого облачного слова и повторно берётся из кэша', async () => {
+  const app = setup([]);
+  let calls = 0;
+  app.context.requestCloudPronunciation = async () => { calls++; return { audio: 'YQ==', contentType: 'audio/mpeg' }; };
+  app.run(`account = {uid:'alice',ready:true,words:[]}; openWord(${JSON.stringify({ id: '1', word: '먹다', details: analysis })},null)`);
+  assert.equal(app.node('#pronounce-word').hidden, false);
+  await app.node('#pronounce-word').events.click();
+  app.run('pronunciationAudio.paused = true');
+  await app.node('#pronounce-word').events.click();
+  assert.equal(calls, 1);
 });
 test('публичный гостевой перевод предлагает Google-вход', async () => {
   const app = setup();

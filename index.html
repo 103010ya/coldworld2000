@@ -247,6 +247,11 @@
       .word-content { overflow-y: auto; min-height: 0; padding-bottom: max(24px, env(safe-area-inset-bottom)); scrollbar-width: none; }
       .word-content::-webkit-scrollbar { display: none; }
       .word-title { margin: 0; text-align: center; font-size: 30px; font-weight: 400; line-height: 1.4; overflow-wrap: anywhere; }
+      .word-heading { display: grid; grid-template-columns: 42px minmax(0, 1fr) 42px; align-items: center; gap: 10px; }
+      .pronounce-word { width: 42px; height: 42px; padding: 0; display: grid; place-items: center; border: 1px solid var(--soft-border); border-radius: 50%; background: #fff; color: #62676e; box-shadow: var(--soft-glow-small); transition: transform 180ms ease, box-shadow 220ms ease; }
+      .pronounce-word:active { transform: scale(.96); box-shadow: 0 0 12px #333d4b0c; }
+      .pronounce-word:disabled { cursor: wait; opacity: .5; }
+      .pronounce-word.is-loading { animation: translation-pulse 1200ms ease-in-out infinite; }
       @media (prefers-reduced-motion: reduce) {
         .word-page:not([hidden]) { animation: none; }
         .word-action { transition: none; }
@@ -328,7 +333,7 @@
           </button>
         </nav>
         <p class="status" id="word-page-status" role="status" hidden></p>
-        <div class="word-content"><h1 class="word-title" id="word-title"></h1><div class="detail-section word-category-section"><h2>Категория</h2><div class="word-categories" id="word-category" role="group" aria-label="Категория слова"></div></div><div id="word-details"></div></div>
+        <div class="word-content"><div class="word-heading"><span aria-hidden="true"></span><h1 class="word-title" id="word-title"></h1><button class="pronounce-word" id="pronounce-word" type="button" aria-label="Прослушать произношение" title="Прослушать произношение" hidden><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4zM15 9a4 4 0 0 1 0 6M18 6a8 8 0 0 1 0 12" /></svg></button></div><div class="detail-section word-category-section"><h2>Категория</h2><div class="word-categories" id="word-category" role="group" aria-label="Категория слова"></div></div><div id="word-details"></div></div>
       </div>
     </section>
     <script type="module" src="./app.js"></script>

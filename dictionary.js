@@ -1,5 +1,5 @@
 import { matchesSearch } from './search.js';
-import { observeCloud, saveNewWord, requestCloudTranslation, removeCloudWord, setCloudWordCategory, createCloudCategory, deleteCloudCategory, confirmCloudWord } from './cloud-store.js';
+import { observeCloud, saveNewWord, requestCloudTranslation, requestCloudPronunciation, removeCloudWord, setCloudWordCategory, createCloudCategory, deleteCloudCategory, confirmCloudWord } from './cloud-store.js';
 import { validateAnalysis } from './translation-schema.mjs';
 
 let account = { uid: null, ready: false, words: [], error: '' };
@@ -38,6 +38,10 @@ const pending = new Set();
 const translateButton = document.querySelector('#translate-word');
 const deleteButton = document.querySelector('#delete-word');
 const detailsContainer = document.querySelector('#word-details');
+const pronounceButton = document.querySelector('#pronounce-word');
+const pronunciationCache = new Map();
+let pronunciationAudio = null;
+let pronunciationRequest = 0;
 
 function openWord(word, trigger) {
   selectedWord = word;
@@ -45,6 +49,7 @@ function openWord(word, trigger) {
   document.querySelector('#word-title').textContent = word.word;
   renderDetails(word.details);
   updateTranslationState();
+  updatePronunciationState();
   renderCategorySelect();
   pageMessage.hidden = true;
   page.hidden = false;
@@ -56,6 +61,7 @@ function openWord(word, trigger) {
 }
 
 function closeWord() {
+  stopPronunciation();
   page.hidden = true;
   main.inert = false;
   selectedWord = null;
@@ -307,6 +313,72 @@ function updateTranslationState() {
   translateButton.setAttribute('aria-label', busy ? 'Переводим слово' : 'Перевести слово');
 }
 
+function stopPronunciation() {
+  pronunciationRequest++;
+  if (pronunciationAudio) {
+    pronunciationAudio.pause();
+    pronunciationAudio.currentTime = 0;
+    pronunciationAudio = null;
+  }
+  pronounceButton.classList.remove('is-loading');
+  pronounceButton.setAttribute('aria-busy', 'false');
+  updatePronunciationState();
+}
+
+function updatePronunciationState() {
+  const available = Boolean(selectedWord?.details?.koreanWord && account.uid);
+  pronounceButton.hidden = !available;
+  pronounceButton.disabled = !available || pronounceButton.classList.contains('is-loading');
+}
+
+function audioFromBase64(base64, contentType) {
+  const bytes = Uint8Array.from(atob(base64), character => character.charCodeAt(0));
+  return URL.createObjectURL(new Blob([bytes], { type: contentType || 'audio/mpeg' }));
+}
+
+async function pronounceSelectedWord() {
+  if (!selectedWord?.details || !account.uid) return;
+  if (pronunciationAudio && !pronunciationAudio.paused) {
+    stopPronunciation();
+    return;
+  }
+  const target = selectedWord;
+  const cacheKey = `${account.uid}:${target.id}:${target.details.koreanWord}`;
+  const request = ++pronunciationRequest;
+  pronounceButton.classList.add('is-loading');
+  pronounceButton.setAttribute('aria-busy', 'true');
+  updatePronunciationState();
+  pageMessage.hidden = true;
+  try {
+    let audioUrl = pronunciationCache.get(cacheKey);
+    if (!audioUrl) {
+      const result = await requestCloudPronunciation(account.uid, target.id);
+      audioUrl = audioFromBase64(result.audio, result.contentType);
+      pronunciationCache.set(cacheKey, audioUrl);
+    }
+    if (request !== pronunciationRequest || selectedWord?.id !== target.id) return;
+    pronunciationAudio = new Audio(audioUrl);
+    pronunciationAudio.addEventListener('ended', () => {
+      pronunciationAudio = null;
+      updatePronunciationState();
+    }, { once: true });
+    await pronunciationAudio.play();
+  } catch (error) {
+    if (request === pronunciationRequest && selectedWord?.id === target.id) {
+      pageMessage.textContent = error.message || 'Не удалось воспроизвести произношение. Попробуйте ещё раз.';
+      pageMessage.hidden = false;
+    }
+  } finally {
+    if (request === pronunciationRequest) {
+      pronounceButton.classList.remove('is-loading');
+      pronounceButton.setAttribute('aria-busy', 'false');
+      updatePronunciationState();
+    }
+  }
+}
+
+pronounceButton.addEventListener('click', pronounceSelectedWord);
+
 function renderDetails(details) {
   detailsContainer.replaceChildren();
   if (!details) return;
@@ -388,6 +460,7 @@ async function translateWord(word, inPage) {
         selectedWord = translated;
         document.querySelector('#word-title').textContent = details.koreanWord;
         renderDetails(details);
+        updatePronunciationState();
         pageMessage.hidden = true;
       }
       if (!inPage) showMessage();
@@ -404,6 +477,7 @@ async function translateWord(word, inPage) {
       selectedWord = words[index];
       document.querySelector('#word-title').textContent = details.koreanWord;
       renderDetails(details);
+      updatePronunciationState();
       pageMessage.hidden = true;
     }
     if (!inPage) showMessage();
@@ -439,6 +513,7 @@ observeCloud(next => {
   }
   loadDictionary();
   updateTranslationState();
+  updatePronunciationState();
   syncStatus.textContent = next.error || (!next.ready ? 'Загружаем словарь…' : next.uid ? '' : 'Войдите через Google, чтобы сохранять слова в аккаунте.');
   syncStatus.hidden = !syncStatus.textContent;
   layoutList();
