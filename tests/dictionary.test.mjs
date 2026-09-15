@@ -164,7 +164,7 @@ test('новая категория видна до ответа облачно�
   app.node('#category-name').value = 'Работа';
   const saving = app.node('#category-form').events.submit({ preventDefault() {} });
   assert.equal(app.run('readCategories()[0].name'), 'Работа');
-  assert.equal(app.node('#category-form').hidden, true);
+  assert.equal(app.node('#category-create').hidden, true);
   finish();
   await saving;
   assert.equal(app.run('readCategories()[0].name'), 'Работа');
@@ -177,6 +177,6 @@ test('ошибка облачного сохранения возвращает 
   app.node('#category-name').value = 'Работа';
   await app.node('#category-form').events.submit({ preventDefault() {} });
   assert.equal(app.run('readCategories().length'), 0);
-  assert.equal(app.node('#category-form').hidden, false);
+  assert.equal(app.node('#category-create').hidden, false);
   assert.equal(app.node('#category-name').value, 'Работа');
 });

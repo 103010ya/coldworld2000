@@ -15,6 +15,7 @@ const categoryManager = document.querySelector('#category-manager');
 const categoryOpen = document.querySelector('#category-open');
 const categoryClose = document.querySelector('#category-close');
 const categoryNew = document.querySelector('#category-new');
+const categoryCreate = document.querySelector('#category-create');
 const categoryStatus = document.querySelector('#category-status');
 const categoryForm = document.querySelector('#category-form');
 const categoryName = document.querySelector('#category-name');
@@ -63,6 +64,7 @@ function closeWord() {
 closeButton.addEventListener('click', closeWord);
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && !page.hidden) closeWord();
+  else if (event.key === 'Escape' && !categoryCreate.hidden) closeCategoryCreate();
   else if (event.key === 'Escape' && !categoryManager.hidden) closeCategoryManager();
 });
 document.querySelector('#delete-word').addEventListener('click', async () => {
@@ -495,11 +497,11 @@ function showCategoryMessage(text = '') {
 }
 
 function updateCategoryViewport() {
-  if (categoryManager.hidden || !window.visualViewport) return;
+  if (categoryCreate.hidden || !window.visualViewport) return;
   const viewport = window.visualViewport;
-  // На телефоне центрируем окно в видимой области над клавиатурой.
-  categoryManager.style.top = `${viewport.offsetTop}px`;
-  categoryManager.style.height = `${viewport.height}px`;
+  // На телефоне центрируем поле в видимой области над клавиатурой.
+  categoryCreate.style.top = `${viewport.offsetTop}px`;
+  categoryCreate.style.height = `${viewport.height}px`;
 }
 window.visualViewport?.addEventListener('resize', updateCategoryViewport);
 window.visualViewport?.addEventListener('scroll', updateCategoryViewport);
@@ -508,8 +510,7 @@ function closeCategoryManager() {
   categoryManager.hidden = true;
   main.inert = false;
   categoryOpen.setAttribute('aria-expanded', 'false');
-  categoryForm.hidden = true;
-  categoryNew.hidden = false;
+  closeCategoryCreate();
   categoryName.blur();
   showCategoryMessage();
   categoryOpen.focus({ preventScroll: true });
@@ -519,19 +520,24 @@ categoryOpen.addEventListener('click', () => {
   categoryManager.hidden = false;
   categoryOpen.setAttribute('aria-expanded', 'true');
   main.inert = true;
-  updateCategoryViewport();
   categoryClose.focus({ preventScroll: true });
 });
 categoryClose.addEventListener('click', closeCategoryManager);
-categoryManager.addEventListener('click', event => {
-  if (event.target === categoryManager) closeCategoryManager();
-});
 categoryNew.addEventListener('click', () => {
-  categoryForm.hidden = false;
-  categoryNew.hidden = true;
+  categoryCreate.hidden = false;
+  categoryManager.inert = true;
   showCategoryMessage();
   categoryName.focus();
   updateCategoryViewport();
+});
+function closeCategoryCreate() {
+  categoryCreate.hidden = true;
+  categoryManager.inert = false;
+  categoryName.blur();
+  categoryNew.focus({ preventScroll: true });
+}
+categoryCreate.addEventListener('click', event => {
+  if (event.target === categoryCreate) closeCategoryCreate();
 });
 
 categoryForm.addEventListener('submit', async event => {
@@ -553,9 +559,7 @@ categoryForm.addEventListener('submit', async event => {
     categoryName.value = '';
     renderCategories();
     renderWords(readWords());
-    categoryName.blur();
-    categoryForm.hidden = true;
-    categoryNew.hidden = false;
+    closeCategoryCreate();
     showCategoryMessage();
     const created = [...categoryRows.querySelectorAll('.category-choice')].find(button => button.textContent === category.name);
     created?.focus({ preventScroll: true });
@@ -572,8 +576,8 @@ categoryForm.addEventListener('submit', async event => {
     if (uid !== account.uid) return;
     renderCategories();
     categoryName.value = name;
-    categoryForm.hidden = false;
-    categoryNew.hidden = true;
+    categoryCreate.hidden = false;
+    categoryManager.inert = true;
     showCategoryMessage('Не удалось сохранить категорию. Название осталось в поле — попробуйте ещё раз.');
   }
   finally { categoryForm.querySelector('button').disabled = false; }
