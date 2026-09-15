@@ -165,19 +165,31 @@ function renderWords(words, addedWord) {
       quickAdd.innerHTML = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>';
       quickAdd.disabled = pendingCategoryMoves.has(word.id) || Boolean(pendingAdds.get(word.id)?.saving);
       quickAdd.setAttribute('aria-label', `Добавить «${word.word}» в выбранную категорию`);
-      quickAdd.addEventListener('click', () => addWordToCurrentCategory(word));
+      quickAdd.addEventListener('click', () => moveWordToCategory(word, selectedCategory));
       card.append(quickAdd);
-    } else if (!word.details) {
-      const quickTranslate = document.createElement('button');
-      quickTranslate.type = 'button';
-      quickTranslate.className = 'quick-translate';
-      quickTranslate.innerHTML = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h12M9 3v2M12 5c-1 6-4 9-9 11M5 8c1 3 4 6 7 7M13 21l4-10 4 10M14.5 17h5" /></svg>';
-      const busy = pending.has(word.id) || pendingAdds.get(word.id)?.saving;
-      quickTranslate.disabled = Boolean(busy);
-      quickTranslate.classList.toggle('is-loading', Boolean(busy));
-      quickTranslate.setAttribute('aria-label', `Перевести «${word.word}»`);
-      quickTranslate.addEventListener('click', () => translateWord(word, false));
-      card.append(quickTranslate);
+    } else {
+      if (!word.details) {
+        const quickTranslate = document.createElement('button');
+        quickTranslate.type = 'button';
+        quickTranslate.className = 'quick-translate';
+        quickTranslate.innerHTML = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h12M9 3v2M12 5c-1 6-4 9-9 11M5 8c1 3 4 6 7 7M13 21l4-10 4 10M14.5 17h5" /></svg>';
+        const busy = pending.has(word.id) || pendingAdds.get(word.id)?.saving;
+        quickTranslate.disabled = Boolean(busy);
+        quickTranslate.classList.toggle('is-loading', Boolean(busy));
+        quickTranslate.setAttribute('aria-label', `Перевести «${word.word}»`);
+        quickTranslate.addEventListener('click', () => translateWord(word, false));
+        card.append(quickTranslate);
+      }
+      if (selectedCategory !== 'all') {
+        const quickRemove = document.createElement('button');
+        quickRemove.type = 'button';
+        quickRemove.className = 'quick-category';
+        quickRemove.innerHTML = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14" /></svg>';
+        quickRemove.disabled = pendingCategoryMoves.has(word.id);
+        quickRemove.setAttribute('aria-label', `Убрать «${word.word}» из выбранной категории`);
+        quickRemove.addEventListener('click', () => moveWordToCategory(word, null));
+        card.append(quickRemove);
+      }
     }
     fragment.append(card);
   };
@@ -637,9 +649,8 @@ async function deleteCategory(category, button) {
   finally { button.disabled = false; }
 }
 
-async function addWordToCurrentCategory(word) {
+async function moveWordToCategory(word, categoryId) {
   if (selectedCategory === 'all' || pendingCategoryMoves.has(word.id) || pendingAdds.get(word.id)?.saving) return;
-  const categoryId = selectedCategory;
   const uid = account.uid;
   const version = accountVersion;
   const previousCategory = word.categoryId || null;
@@ -658,7 +669,9 @@ async function addWordToCurrentCategory(word) {
     if (version !== accountVersion) return;
     if (uid) account.words = account.words.map(item => item.id === word.id ? { ...item, categoryId: previousCategory } : item);
     renderWords(readWords());
-    showMessage('Не удалось добавить слово в категорию. Попробуйте ещё раз.');
+    showMessage(categoryId
+      ? 'Не удалось добавить слово в категорию. Попробуйте ещё раз.'
+      : 'Не удалось убрать слово из категории. Попробуйте ещё раз.');
   } finally {
     pendingCategoryMoves.delete(word.id);
     if (version === accountVersion) renderWords(readWords());

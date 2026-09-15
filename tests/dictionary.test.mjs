@@ -200,6 +200,10 @@ test('выбранная категория показывает другие с
   await children[2].children[1].events.click();
   assert.equal(app.words()[0].categoryId, 'study');
   assert.equal(app.node('#word-list').children[0].children.some(item => item.className === 'word-list-divider'), false);
+  const categoryCards = app.node('#word-list').children[0].children;
+  await categoryCards[0].children[1].events.click();
+  assert.equal(app.words()[0].categoryId, null);
+  assert.equal(app.node('#word-list').children[0].children.some(item => item.className === 'word-list-divider'), true);
 });
 
 test('каждая карточка слова открывается с начала страницы', () => {
